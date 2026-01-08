@@ -1,0 +1,15 @@
+{
+  "name": "proto-ui",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^2.0.0",
+    "happy-dom": "^15.0.0"
+  },
+  "scripts": {
+    "specimens": "tsx internal/specimens/specimens.ts",
+    "test": "vitest run"
+  }
+}
