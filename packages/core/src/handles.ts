@@ -1,4 +1,6 @@
 // packages/core/src/handles.ts
+import { UnUse } from "./feedback";
+import { StyleHandle } from "./style";
 import type {
   TemplateType,
   TemplateProps,
@@ -71,6 +73,14 @@ export interface DefHandle {
   state: {
     define(id: any, options?: any): void;
   };
+
+  feedback: {
+    style: {
+      use: (...handles: StyleHandle[]) => UnUse;
+    };
+  };
+
+  rule: (spec: any) => void;
 }
 
 // render-time 句柄：构造模板 + 只读读取视图（read）

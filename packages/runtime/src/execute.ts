@@ -14,9 +14,11 @@ import {
   createDefHandle,
   createLifecycleRegistry,
   type LifecycleRegistry,
-  PropsManager,
 } from "./def";
 import type { RuntimeHost } from "./host";
+import { FeedbackStyleRecorder } from "@proto-ui/core";
+import { PropsManager } from "@proto-ui/props";
+import { RuleRegistry } from "./rule";
 
 type Phase = "setup" | "render" | "callback" | "unknown";
 
@@ -35,6 +37,11 @@ export interface ExecuteResult {
 export interface RuntimeController {
   applyProps(nextRaw: Record<string, any>): void; // no render
   update(): void; // render + commit
+
+  /** v0: static feedback snapshot (setup-only) */
+  getFeedbackStyleTokens(): string[];
+  /** v0: evaluate rule -> style tokens (props only for now) */
+  getRuleStyleTokens(): string[];
 }
 
 /**
@@ -56,9 +63,11 @@ export function executePrototype(
 
   // ✅ create props manager for setup-only props APIs
   const propsMgr = new PropsManager();
+  const feedbackStyle = new FeedbackStyleRecorder();
+  const rules = new RuleRegistry();
 
   // ✅ pass props manager into def handle
-  const def = createDefHandle(st, lifecycle, propsMgr);
+  const def = createDefHandle(st, lifecycle, propsMgr, feedbackStyle, rules);
 
   // Setup
   phase = "setup";
@@ -154,11 +163,17 @@ export function executeWithHost(
   const st = { prototypeName: proto.name, getPhase: () => phase as any };
   const lifecycle = createLifecycleRegistry();
   const propsMgr = new PropsManager();
-  const def = createDefHandle(st, lifecycle, propsMgr);
+  const feedbackStyle = new FeedbackStyleRecorder();
+  const rules = new RuleRegistry();
+
+  const def = createDefHandle(st, lifecycle, propsMgr, feedbackStyle, rules);
 
   // setup
   phase = "setup";
   const maybeRender = proto.setup(def);
+
+  // Freeze feedback snapshot right after setup (v0: static)
+  const feedbackTokensSnapshot = feedbackStyle.export().tokens;
 
   const renderFn: RenderFn = maybeRender ?? ((renderer) => [renderer.r.slot()]);
 
@@ -211,6 +226,15 @@ export function executeWithHost(
     update() {
       // explicit render+commit
       doRenderCommit("update");
+    },
+    getFeedbackStyleTokens() {
+      return feedbackTokensSnapshot.slice(); // defensive copy
+    },
+    getRuleStyleTokens() {
+      // v0: evaluate on demand, props-only wiring
+      // important: use resolved props, not raw
+      const current = propsMgr.get();
+      return rules.evaluateStyleTokens(current);
     },
   };
 

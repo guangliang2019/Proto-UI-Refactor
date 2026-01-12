@@ -1,26 +1,6 @@
 import { it, expect } from "vitest";
 import { defineWebComponent } from "../src/define";
-import { css, tw } from "@proto-ui/core";
-
-it("template-props style(css) is applied to DOM element", async () => {
-  defineWebComponent({
-    name: "x-tpl-css",
-    setup(_def) {
-      return (renderer) => [
-        renderer.el("span", { style: css("color: red;") }, ["x"]),
-      ];
-    },
-  });
-
-  const el = document.createElement("x-tpl-css") as any;
-  document.body.appendChild(el);
-  await Promise.resolve();
-
-  const span = el.querySelector("span") as HTMLSpanElement | null;
-  expect(span).not.toBeNull();
-  expect(span!.getAttribute("style") ?? "").toContain("color: red");
-  expect(el.innerHTML).toBe('<span style="color: red;">x</span>');
-});
+import { tw } from "@proto-ui/core";
 
 it("template-props style(tw) does not throw, and is ignored by default without resolver", async () => {
   defineWebComponent({

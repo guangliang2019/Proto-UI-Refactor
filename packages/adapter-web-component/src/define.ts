@@ -1,9 +1,11 @@
 // packages/adapter-web-component/src/define.ts
+
 import type { Prototype, RenderReadHandle, RunHandle } from "@proto-ui/core";
 import { executeWithHost, type RuntimeHost } from "@proto-ui/runtime";
 import { commitChildren } from "./commit";
 import { bindController, getElementProps, unbindController } from "./props";
 import { SlotProjector } from "./slot-projector";
+import { createOwnedTwTokenApplier } from "./feedback-style";
 
 function assertKebabCase(tag: string) {
   if (!tag.includes("-") || tag.toLowerCase() !== tag) {
@@ -140,12 +142,21 @@ export function defineWebComponent(
 
       const { controller, invokeUnmounted } = executeWithHost(proto, host);
 
+      // --- feedback.style (v0): apply static tokens to host element (custom element itself)
+      const feedbackApplier = createOwnedTwTokenApplier(thisEl);
+      feedbackApplier.apply([
+        ...controller.getFeedbackStyleTokens(),
+        ...controller.getRuleStyleTokens(),
+      ]);
+
       // expose update()
       (this as any).update = () => controller.update();
 
       bindController(this, controller);
 
       this._invokeUnmounted = () => {
+        // remove adapter-owned feedback tokens
+        feedbackApplier.clear();
         unbindController(this);
         invokeUnmounted();
       };

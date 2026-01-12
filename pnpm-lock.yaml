@@ -38,6 +38,15 @@ importers:
         specifier: workspace:*
         version: link:../core
 
+  packages/rule:
+    dependencies:
+      '@proto-ui/core':
+        specifier: workspace:*
+        version: link:../core
+      '@proto-ui/props':
+        specifier: workspace:*
+        version: link:../props
+
   packages/runtime:
     dependencies:
       '@proto-ui/core':
@@ -46,6 +55,9 @@ importers:
       '@proto-ui/props':
         specifier: workspace:*
         version: link:../props
+      '@proto-ui/rule':
+        specifier: workspace:*
+        version: link:../rule
 
 packages:
 
