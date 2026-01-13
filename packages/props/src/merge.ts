@@ -1,6 +1,11 @@
 // packages/props/src/merge.ts
 
-import type { EmptyBehavior, PropDecl, PropsDeclMap } from "./types";
+import type {
+  EmptyBehavior,
+  PropsBaseType,
+  PropSpec,
+  PropsSpecMap,
+} from "@proto-ui/types";
 
 export type MergeDiagLevel = "warning" | "error";
 
@@ -10,8 +15,8 @@ export type MergeDiag = {
   message: string;
 };
 
-export type MergeResult = {
-  decls: PropsDeclMap;
+export type MergeResult<P extends PropsBaseType> = {
+  specs: PropsSpecMap<P>;
   diags: MergeDiag[];
 };
 
@@ -60,19 +65,19 @@ function rangeNarrower(
   return nextMin > prevMin || nextMax < prevMax;
 }
 
-export function mergeDecls(
-  base: PropsDeclMap,
-  incoming: PropsDeclMap
-): MergeResult {
-  const out: PropsDeclMap = { ...base };
+export function mergeSpecs<A extends PropsBaseType, B extends PropsBaseType>(
+  base: PropsSpecMap<A>,
+  incoming: PropsSpecMap<B>
+): MergeResult<A & B> {
+  const out: PropsSpecMap<A & B> = { ...base } as PropsSpecMap<A & B>;
   const diags: MergeDiag[] = [];
 
   for (const key of Object.keys(incoming)) {
     const next = incoming[key]!;
-    const prev = out[key];
+    const prev = (out as any)[key];
 
     if (!prev) {
-      out[key] = { ...next };
+      (out as any)[key] = { ...next };
       continue;
     }
 
@@ -188,7 +193,7 @@ export function mergeDecls(
     }
 
     // merge result: deterministic
-    out[key] = {
+    (out as any)[key] = {
       ...prev,
       ...next,
       // keep kind stable
@@ -200,10 +205,10 @@ export function mergeDecls(
       range: next.range ?? prev.range,
       // validator kept identical (checked)
       validator: prev.validator,
-    } satisfies PropDecl;
+    } satisfies PropSpec;
   }
 
-  return { decls: out, diags };
+  return { specs: out, diags };
 }
 
 function hasOwn(obj: any, key: string) {

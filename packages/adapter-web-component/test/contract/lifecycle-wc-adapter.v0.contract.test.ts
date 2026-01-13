@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { Prototype } from "@proto-ui/core";
-import { defineWebComponent } from "@proto-ui/adapter-web-component";
+import { AdaptToWebComponent } from "@proto-ui/adapter-web-component";
 
 describe("contract: adapter-web-component / lifecycle (v0)", () => {
   it("created before mounted; mounted scheduled by adapter.schedule", async () => {
@@ -15,7 +15,7 @@ describe("contract: adapter-web-component / lifecycle (v0)", () => {
       },
     };
 
-    defineWebComponent(P);
+    AdaptToWebComponent(P);
 
     const el = document.createElement("x-wc-life-contract-1") as any;
     document.body.appendChild(el);
@@ -38,7 +38,7 @@ describe("contract: adapter-web-component / lifecycle (v0)", () => {
       },
     };
 
-    defineWebComponent(P);
+    AdaptToWebComponent(P);
 
     const el = document.createElement("x-wc-life-contract-2") as any;
     document.body.appendChild(el);

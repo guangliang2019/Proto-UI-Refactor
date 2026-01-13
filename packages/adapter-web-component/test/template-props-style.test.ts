@@ -1,9 +1,9 @@
 import { it, expect } from "vitest";
-import { defineWebComponent } from "../src/define";
+import { AdaptToWebComponent } from "../src/adapt";
 import { tw } from "@proto-ui/core";
 
 it("template-props style(tw) does not throw, and is ignored by default without resolver", async () => {
-  defineWebComponent({
+  AdaptToWebComponent({
     name: "x-tpl-tw",
     setup(_def) {
       return (renderer) => [
@@ -25,7 +25,7 @@ it("template-props style(tw) does not throw, and is ignored by default without r
 });
 
 it("template-props rejects illegal keys (expose/attr channel must not exist in template)", async () => {
-  defineWebComponent({
+  AdaptToWebComponent({
     name: "x-tpl-illegal-props",
     setup(_def) {
       return (renderer) => [
@@ -48,7 +48,7 @@ it("template-props rejects illegal keys (expose/attr channel must not exist in t
 });
 
 it("template-props rejects non-TemplateStyleHandle style values", async () => {
-  defineWebComponent({
+  AdaptToWebComponent({
     name: "x-tpl-illegal-style",
     setup(_def) {
       return (renderer) => [

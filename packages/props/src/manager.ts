@@ -1,22 +1,22 @@
 // packages/props/src/manager.ts
-
 import type {
-  DefineInput,
   EmptyBehavior,
-  PropDecl,
-  PropsDeclMap,
+  PropSpec,
+  PropsSpecMap,
+  PropsBaseType,
+} from "@proto-ui/types";
+import { mergeSpecs } from "./merge";
+import {
   PropsDefaults,
-  PropsResolveMeta,
   PropsSnapshot,
   PropsWatchCallback,
   RawWatchCallback,
   WatchInfo,
-} from "./types";
-import { mergeDecls } from "./merge";
+} from "@proto-ui/core";
+import { PropsResolveMeta } from "./types";
 
-function hasOwn(obj: any, key: string) {
-  return Object.prototype.hasOwnProperty.call(obj, key);
-}
+const hasOwn = (obj: object, key: PropertyKey) =>
+  Object.prototype.hasOwnProperty.call(obj, key);
 
 function shallowFreeze<T extends object>(o: T): Readonly<T> {
   return Object.freeze({ ...(o as any) });
@@ -26,9 +26,9 @@ function objectIs(a: any, b: any) {
   return Object.is(a, b);
 }
 
-function diffKeys(
-  prev: Record<string, any>,
-  next: Record<string, any>,
+function diffKeys<P extends PropsBaseType>(
+  prev: P & PropsBaseType,
+  next: P & PropsBaseType,
   keys: string[]
 ) {
   const changed: string[] = [];
@@ -48,21 +48,23 @@ type FallbackResult =
   | { ok: true; value: any; usedDefault: boolean; isNonEmpty: boolean }
   | { ok: false; usedDefault: boolean; isNonEmpty: false };
 
-export class PropsManager {
-  private decls: PropsDeclMap = {};
-  private defaultStack: PropsDefaults[] = []; // latest-first
-  private prevValid: Record<string, any> = {}; // per-key previous NON-EMPTY valid
-  private raw: Readonly<Record<string, any>> = Object.freeze({});
-  private resolved: PropsSnapshot = Object.freeze({});
+export class PropsManager<P extends PropsBaseType> {
+  private specs: PropsSpecMap<P> = {} as PropsSpecMap<P>;
+  private defaultStack: PropsDefaults<P>[] = []; // latest-first
+  private prevValid: Partial<Record<keyof P, any>> = {}; // per-key previous NON-EMPTY valid
+  private raw: Readonly<P & PropsBaseType> = Object.freeze(
+    {} as Readonly<P & PropsBaseType>
+  );
+  private resolved: PropsSnapshot<P> = Object.freeze({} as PropsSnapshot<P>);
 
-  private watch: Array<{ keys: string[]; cb: PropsWatchCallback<any> }> = [];
-  private watchAll: Array<{ cb: PropsWatchCallback<any> }> = [];
+  private watch: Array<{ keys: string[]; cb: PropsWatchCallback<P> }> = [];
+  private watchAll: Array<{ cb: PropsWatchCallback<P> }> = [];
   private watchRaw: Array<{
     keys: string[];
-    cb: RawWatchCallback<any>;
+    cb: RawWatchCallback<P>;
     devWarn?: boolean;
   }> = [];
-  private watchRawAll: Array<{ cb: RawWatchCallback<any>; devWarn?: boolean }> =
+  private watchRawAll: Array<{ cb: RawWatchCallback<P>; devWarn?: boolean }> =
     [];
 
   private diags: PropsManagerDiag[] = [];
@@ -82,13 +84,15 @@ export class PropsManager {
   }
 
   /** setup-only */
-  define(input: DefineInput) {
-    const { decls, diags } = mergeDecls(this.decls, input);
-    const hasError = diags.some((d) => d.level === "error");
+  define(input: PropsSpecMap<P>) {
+    const { specs, diags } = mergeSpecs(this.specs, input);
+    const hasError = diags.some((d: PropsManagerDiag) => d.level === "error");
     if (hasError) {
       const msg = diags
-        .filter((d) => d.level === "error")
-        .map((d) => (d.key ? `${d.key}: ${d.message}` : d.message))
+        .filter((d: PropsManagerDiag) => d.level === "error")
+        .map((d: PropsManagerDiag) =>
+          d.key ? `${d.key}: ${d.message}` : d.message
+        )
         .join("; ");
       throw new Error(`[Props] define merge error: ${msg}`);
     }
@@ -97,35 +101,35 @@ export class PropsManager {
         this.diags.push({ level: "warning", key: d.key, message: d.message });
       }
     }
-    this.decls = decls;
+    this.specs = specs;
   }
 
   /** setup-only */
-  setDefaults(partial: PropsDefaults) {
+  setDefaults(partial: PropsDefaults<P>) {
     this.defaultStack.unshift({ ...partial });
   }
 
   /** setup-only */
-  addWatch(keys: string[], cb: PropsWatchCallback) {
+  addWatch(keys: (keyof P & string)[], cb: PropsWatchCallback<P>) {
     if (!Array.isArray(keys) || keys.length === 0) {
       throw new Error(
         `[Props] watch(keys) requires non-empty declared keys. Use watchAll() instead.`
       );
     }
     for (const k of keys) {
-      if (!this.decls[k])
+      if (!this.specs[k])
         throw new Error(`[Props] watch() key not declared: ${k}`);
     }
     this.watch.push({ keys: [...keys], cb });
   }
 
   /** setup-only */
-  addWatchAll(cb: PropsWatchCallback) {
+  addWatchAll(cb: PropsWatchCallback<P>) {
     this.watchAll.push({ cb });
   }
 
   /** setup-only: raw escape hatch */
-  addWatchRaw(keys: string[], cb: RawWatchCallback, devWarn = true) {
+  addWatchRaw(keys: string[], cb: RawWatchCallback<P>, devWarn = true) {
     if (!Array.isArray(keys) || keys.length === 0) {
       throw new Error(
         `[Props] watchRaw(keys) requires non-empty keys. Use watchRawAll() instead.`
@@ -135,46 +139,50 @@ export class PropsManager {
   }
 
   /** setup-only */
-  addWatchRawAll(cb: RawWatchCallback, devWarn = true) {
+  addWatchRawAll(cb: RawWatchCallback<P>, devWarn = true) {
     this.watchRawAll.push({ cb, devWarn });
   }
 
   /** runtime-only */
-  get(): PropsSnapshot {
+  get(): PropsSnapshot<P> {
     return this.resolved;
   }
 
   /** runtime-only */
-  getRaw(): Readonly<Record<string, any>> {
-    return this.raw;
+  getRaw(): Readonly<P & PropsBaseType> {
+    return this.raw as Readonly<P & PropsBaseType>;
   }
 
   /** runtime-only */
-  isProvided(key: string): boolean {
+  isProvided(key: keyof P): boolean {
     return hasOwn(this.raw, key);
   }
 
   /** runtime-only */
-  applyRaw(nextRawInput: Record<string, any>, run?: any) {
+  applyRaw(nextRawInput: Record<string, any>, run?: any): PropsResolveMeta<P> {
     const prevRaw = this.raw;
     const prevResolved = this.resolved;
 
-    const nextRaw = shallowFreeze(nextRawInput ?? {});
+    const nextRaw = shallowFreeze(nextRawInput ?? {}) as Readonly<
+      P & PropsBaseType
+    >;
     this.raw = nextRaw;
 
-    const { snapshot: nextResolved } = this.resolve(nextRaw);
+    const { snapshot: nextResolved, meta } = this.resolve(nextRaw);
     this.resolved = nextResolved;
 
     // First hydration: never trigger watches.
     if (!this.hydrated) {
       this.hydrated = true;
-      return;
+      return meta;
     }
 
-    if (!this.hasObservers()) return;
+    if (!this.hasObservers()) return meta;
 
     this.fireWatchRaw(run, prevRaw, nextRaw);
     this.fireWatch(run, prevResolved, nextResolved);
+
+    return meta;
   }
 
   /**
@@ -190,29 +198,33 @@ export class PropsManager {
    * - provided non-empty but invalid: same handling as empty="fallback"/"error" (accept does NOT apply)
    */
   private resolve(raw: Readonly<Record<string, any>>): {
-    snapshot: PropsSnapshot;
-    meta: PropsResolveMeta;
+    snapshot: PropsSnapshot<P>;
+    meta: PropsResolveMeta<P>;
   } {
     const out: Record<string, any> = {};
-    const providedKeys: string[] = [];
-    const invalidKeys: string[] = [];
-    const usedDefaultsKeys: string[] = [];
 
-    const declKeys = Object.keys(this.decls);
+    const providedKeys: string[] = [];
+    const emptyKeys: string[] = [];
+    const invalidKeys: string[] = [];
+    const usedFallbackKeys: string[] = [];
+    const acceptedEmptyKeys: string[] = [];
+
+    const declKeys = Object.keys(this.specs);
 
     for (const k of declKeys) {
-      const decl = this.decls[k]!;
-      const provided = hasOwn(raw, k);
+      const decl = this.specs[k]!;
+      const provided = Object.prototype.hasOwnProperty.call(raw, k);
+
       if (provided) providedKeys.push(k);
 
       const eb: EmptyBehavior = decl.empty ?? "fallback";
-
       const rawVal = provided ? (raw as any)[k] : undefined;
+
       const isProvidedEmpty =
         provided && (rawVal === null || rawVal === undefined);
       const isMissing = !provided;
 
-      // 1) Missing: treat as fallback/default (accept does NOT mean default-null)
+      // 1) Missing => fallback chain (accept does NOT apply)
       if (isMissing) {
         const fb = this.pickFallback(
           k,
@@ -220,30 +232,30 @@ export class PropsManager {
           eb === "error" ? "non-empty" : "any"
         );
         if (!fb.ok) {
-          // only possible when mode=non-empty and nothing qualifies
           throw new Error(
             `[Props] prop "${k}" is missing and empty="error" has no non-empty fallback.`
           );
         }
         out[k] = fb.value;
-        if (fb.usedDefault) usedDefaultsKeys.push(k);
-        // update prevValid only when resolved is non-empty AND valid
-        if (fb.isNonEmpty) this.prevValid[k] = fb.value;
+        if (fb.usedDefault) usedFallbackKeys.push(k);
+        if (fb.isNonEmpty) (this.prevValid as any)[k] = fb.value;
         continue;
       }
 
-      // 2) Provided but empty (null/undefined)
+      // 2) Provided but empty
       if (isProvidedEmpty) {
-        // mark invalid (provided but empty is invalid at raw layer)
-        invalidKeys.push(k);
+        emptyKeys.push(k);
 
         if (eb === "accept") {
-          // accept is ONLY for provided empty => resolved null; does NOT update prevValid
+          // ACCEPTED empty is not invalid.
           out[k] = null;
-          usedDefaultsKeys.push(k); // treat as canonical empty choice
+          acceptedEmptyKeys.push(k);
+          // do NOT update prevValid
+          // do NOT mark usedFallbackKeys (it was a deliberate accepted input)
           continue;
         }
 
+        // fallback / error for empty provided
         const fb = this.pickFallback(
           k,
           decl,
@@ -255,25 +267,23 @@ export class PropsManager {
           );
         }
         out[k] = fb.value;
-        if (fb.usedDefault) usedDefaultsKeys.push(k);
-        if (fb.isNonEmpty) this.prevValid[k] = fb.value;
+        if (fb.usedDefault) usedFallbackKeys.push(k);
+        if (fb.isNonEmpty) (this.prevValid as any)[k] = fb.value;
         continue;
       }
 
-      // 3) Provided non-empty: validate
+      // 3) Provided non-empty => validate
       const valid = this.validateNonEmptyValue(rawVal, decl);
 
       if (valid.ok) {
         out[k] = valid.value;
-        // prevValid stores ONLY non-empty validated values
-        this.prevValid[k] = valid.value;
+        (this.prevValid as any)[k] = valid.value;
         continue;
       }
 
-      // 4) Provided non-empty but invalid: fallback / error
+      // 4) Provided non-empty but invalid => invalidKeys + fallback/error
       invalidKeys.push(k);
 
-      // accept does NOT apply to non-empty invalid values; treat accept as fallback here.
       const mode = eb === "error" ? "non-empty" : "any";
       const fb = this.pickFallback(k, decl, mode);
       if (!fb.ok) {
@@ -282,13 +292,19 @@ export class PropsManager {
         );
       }
       out[k] = fb.value;
-      if (fb.usedDefault) usedDefaultsKeys.push(k);
-      if (fb.isNonEmpty) this.prevValid[k] = fb.value;
+      if (fb.usedDefault) usedFallbackKeys.push(k);
+      if (fb.isNonEmpty) (this.prevValid as any)[k] = fb.value;
     }
 
     return {
-      snapshot: shallowFreeze(out),
-      meta: { providedKeys, invalidKeys, usedDefaultsKeys },
+      snapshot: shallowFreeze(out) as PropsSnapshot<P>,
+      meta: {
+        providedKeys: providedKeys as any,
+        emptyKeys: emptyKeys as any,
+        invalidKeys: invalidKeys as any,
+        usedFallbackKeys: usedFallbackKeys as any,
+        acceptedEmptyKeys: acceptedEmptyKeys as any,
+      },
     };
   }
 
@@ -297,7 +313,7 @@ export class PropsManager {
    */
   private validateNonEmptyValue(
     v: any,
-    decl: PropDecl
+    decl: PropSpec
   ): { ok: true; value: any } | { ok: false } {
     // kind checks (minimal)
     switch (decl.kind) {
@@ -350,7 +366,7 @@ export class PropsManager {
    */
   private pickFallback(
     key: string,
-    decl: PropDecl,
+    decl: PropSpec,
     mode: "any" | "non-empty"
   ): FallbackResult {
     const acceptAny = (v: any) => v !== undefined; // resolved never outputs undefined
@@ -400,16 +416,16 @@ export class PropsManager {
     return { ok: false, usedDefault: false, isNonEmpty: false };
   }
 
-  private fireWatch(run: any, prev: PropsSnapshot, next: PropsSnapshot) {
+  private fireWatch(run: any, prev: PropsSnapshot<P>, next: PropsSnapshot<P>) {
     const prevObj = prev as any;
     const nextObj = next as any;
-    const allKeys = Object.keys(this.decls);
+    const allKeys = Object.keys(this.specs);
 
-    const changedAll = diffKeys(prevObj, nextObj, allKeys);
+    const changedAll = diffKeys<P>(prevObj, nextObj, allKeys);
 
     for (const w of this.watchAll) {
       if (changedAll.length === 0) continue;
-      const info: WatchInfo = {
+      const info: WatchInfo<P> = {
         changedKeysAll: changedAll,
         changedKeysMatched: changedAll,
       };
@@ -417,9 +433,9 @@ export class PropsManager {
     }
 
     for (const w of this.watch) {
-      const matched = diffKeys(prevObj, nextObj, w.keys);
+      const matched = diffKeys<P>(prevObj, nextObj, w.keys);
       if (matched.length === 0) continue;
-      const info: WatchInfo = {
+      const info: WatchInfo<P> = {
         changedKeysAll: changedAll,
         changedKeysMatched: matched,
       };
@@ -429,8 +445,8 @@ export class PropsManager {
 
   private fireWatchRaw(
     run: any,
-    prevRaw: Readonly<Record<string, any>>,
-    nextRaw: Readonly<Record<string, any>>
+    prevRaw: Readonly<P & PropsBaseType>,
+    nextRaw: Readonly<P & PropsBaseType>
   ) {
     const prevObj = prevRaw as any;
     const nextObj = nextRaw as any;
@@ -439,7 +455,7 @@ export class PropsManager {
       new Set([...Object.keys(prevObj), ...Object.keys(nextObj)])
     );
 
-    const changedAll = diffKeys(prevObj, nextObj, unionKeys);
+    const changedAll = diffKeys<P & PropsBaseType>(prevObj, nextObj, unionKeys);
 
     for (const w of this.watchRawAll) {
       if (w.devWarn) {
@@ -449,7 +465,7 @@ export class PropsManager {
         });
       }
       if (changedAll.length === 0) continue;
-      const info: WatchInfo = {
+      const info: WatchInfo<P & PropsBaseType> = {
         changedKeysAll: changedAll,
         changedKeysMatched: changedAll,
       };
@@ -463,9 +479,9 @@ export class PropsManager {
           message: `[Props] watchRaw() is an escape hatch; avoid in official prototypes.`,
         });
       }
-      const matched = diffKeys(prevObj, nextObj, w.keys);
+      const matched = diffKeys<P & PropsBaseType>(prevObj, nextObj, w.keys);
       if (matched.length === 0) continue;
-      const info: WatchInfo = {
+      const info: WatchInfo<P & PropsBaseType> = {
         changedKeysAll: changedAll,
         changedKeysMatched: matched,
       };
@@ -483,7 +499,7 @@ export class PropsManager {
     this.watchRawAll = [];
     this.defaultStack = [];
     this.prevValid = {};
-    this.raw = Object.freeze({});
-    this.resolved = Object.freeze({});
+    this.raw = Object.freeze({} as Readonly<P & PropsBaseType>);
+    this.resolved = Object.freeze({} as PropsSnapshot<P>);
   }
 }

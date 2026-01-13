@@ -8,6 +8,9 @@ importers:
 
   .:
     devDependencies:
+      '@proto-ui/types':
+        specifier: workspace:*
+        version: link:packages/types
       happy-dom:
         specifier: ^15.0.0
         version: 15.11.7
@@ -29,14 +32,24 @@ importers:
       '@proto-ui/runtime':
         specifier: workspace:*
         version: link:../runtime
+      '@proto-ui/types':
+        specifier: workspace:*
+        version: link:../types
 
-  packages/core: {}
+  packages/core:
+    dependencies:
+      '@proto-ui/types':
+        specifier: workspace:*
+        version: link:../types
 
   packages/props:
     dependencies:
       '@proto-ui/core':
         specifier: workspace:*
         version: link:../core
+      '@proto-ui/types':
+        specifier: workspace:*
+        version: link:../types
 
   packages/rule:
     dependencies:
@@ -58,6 +71,11 @@ importers:
       '@proto-ui/rule':
         specifier: workspace:*
         version: link:../rule
+      '@proto-ui/types':
+        specifier: workspace:*
+        version: link:../types
+
+  packages/types: {}
 
 packages:
 

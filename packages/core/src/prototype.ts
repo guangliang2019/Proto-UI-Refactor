@@ -1,11 +1,10 @@
 // packages/core/src/prototype.ts
-
+import type { PropsBaseType } from "@proto-ui/types";
 import {
   DEFAULT_NORMALIZE,
   normalizeChildren,
   TemplateProps,
   type NormalizeOptions,
-  type ReservedType,
   type TemplateChildren,
 } from "./template";
 
@@ -49,12 +48,14 @@ function assertTemplateProps(v: any) {
  * Proto UI has an invisible, mandatory HostRoot per instance.
  * RenderFn describes ONLY HostRoot's children.
  */
-export interface Prototype {
+export interface Prototype<Props extends PropsBaseType = PropsBaseType> {
   name: string;
-  setup: (def: DefHandle) => RenderFn | void;
+  setup: (def: DefHandle<Props>) => RenderFn | void;
 }
 
-export type RenderFn = (renderer: RendererHandle) => TemplateChildren;
+export type RenderFn = <Props extends PropsBaseType>(
+  renderer: RendererHandle<Props>
+) => TemplateChildren;
 
 export interface RendererPrimitivesOptions {
   normalize?: NormalizeOptions;

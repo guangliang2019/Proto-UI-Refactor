@@ -1,4 +1,4 @@
-// packages/adapter-web-component/src/define.ts
+// packages/adapter-web-component/src/adapt.ts
 
 import type { Prototype, RenderReadHandle, RunHandle } from "@proto-ui/core";
 import { executeWithHost, type RuntimeHost } from "@proto-ui/runtime";
@@ -6,6 +6,7 @@ import { commitChildren } from "./commit";
 import { bindController, getElementProps, unbindController } from "./props";
 import { SlotProjector } from "./slot-projector";
 import { createOwnedTwTokenApplier } from "./feedback-style";
+import { PropsBaseType } from "@proto-ui/types";
 
 function assertKebabCase(tag: string) {
   if (!tag.includes("-") || tag.toLowerCase() !== tag) {
@@ -15,15 +16,15 @@ function assertKebabCase(tag: string) {
   }
 }
 
-export interface DefineWebComponentOptions {
+export interface WebComponentAdapterOptions {
   shadow?: boolean;
   getProps?: (el: HTMLElement) => any;
   schedule?: (task: () => void) => void;
 }
 
-export function defineWebComponent(
-  proto: Prototype,
-  opt: DefineWebComponentOptions = {}
+export function AdaptToWebComponent<Props extends PropsBaseType>(
+  proto: Prototype<Props>,
+  opt: WebComponentAdapterOptions = {}
 ) {
   assertKebabCase(proto.name);
 
@@ -51,23 +52,23 @@ export function defineWebComponent(
       const thisEl = this;
       const thisRoot = this._root;
 
-      const host: RuntimeHost = {
+      const host: RuntimeHost<Props> = {
         prototypeName: proto.name,
 
         getRawProps() {
           return getElementProps(thisEl) ?? getProps(thisEl) ?? {};
         },
 
-        getRenderRead(): RenderReadHandle {
+        getRenderRead(): RenderReadHandle<Props> {
           const run = this.getRunHandle();
           return { props: run.props, context: run.context, state: run.state };
         },
 
-        getRunHandle(): RunHandle {
+        getRunHandle(): RunHandle<Props> {
           return {
             update: () => controller.update(),
             props: {
-              get: () => ({}),
+              get: () => ({} as Readonly<Props>),
               getRaw: () => host.getRawProps(),
               isProvided: (k: string) =>
                 Object.prototype.hasOwnProperty.call(host.getRawProps(), k),

@@ -1,4 +1,5 @@
 // packages/core/src/handles.ts
+import { PropsBaseType, PropsSpecMap } from "@proto-ui/types";
 import { UnUse } from "./feedback";
 import { StyleHandle } from "./style";
 import type {
@@ -26,13 +27,13 @@ export interface GuardInfo {
 
 export type Phase = "setup" | "render" | "callback" | "unknown";
 
-export interface RunHandle {
+export interface RunHandle<Props extends PropsBaseType> {
   update(): void;
 
   props: {
-    get(): Readonly<Record<string, any>>;
-    getRaw(): Readonly<Record<string, any>>;
-    isProvided(key: string): boolean;
+    get(): Readonly<Props>;
+    getRaw(): Readonly<Props & PropsBaseType>;
+    isProvided(key: keyof Props): boolean;
   };
   context: {
     read(key: any): any;
@@ -44,25 +45,25 @@ export interface RunHandle {
   };
 }
 
-export interface DefHandle {
+export interface DefHandle<Props extends PropsBaseType> {
   lifecycle: {
-    onCreated(cb: (run: RunHandle) => void): void;
-    onMounted(cb: (run: RunHandle) => void): void;
-    onUpdated(cb: (run: RunHandle) => void): void;
-    onUnmounted(cb: (run: RunHandle) => void): void;
+    onCreated(cb: (run: RunHandle<Props>) => void): void;
+    onMounted(cb: (run: RunHandle<Props>) => void): void;
+    onUpdated(cb: (run: RunHandle<Props>) => void): void;
+    onUnmounted(cb: (run: RunHandle<Props>) => void): void;
   };
 
   props: {
-    define(decl: Record<string, any>): void;
-    setDefaults(partialDefaults: Record<string, any>): void;
-    watch(keys: string[], cb: (next: any, prev: any, info: any) => void): void;
-    watchAll(cb: (next: any, prev: any, info: any) => void): void;
+    define(decl: PropsSpecMap<Props>): void;
+    setDefaults(partialDefaults: PropsDefaults<Props>): void;
+    watch(keys: (keyof Props & string)[], cb: PropsWatchCallback<Props>): void;
+    watchAll(cb: PropsWatchCallback<Props>): void;
 
     watchRaw(
-      keys: string[],
-      cb: (nextRaw: any, prevRaw: any, info: any) => void
+      keys: (keyof Props & string)[],
+      cb: RawWatchCallback<Props & PropsBaseType>
     ): void;
-    watchRawAll(cb: (nextRaw: any, prevRaw: any, info: any) => void): void;
+    watchRawAll(cb: RawWatchCallback<Props & PropsBaseType>): void;
   };
 
   context: {
@@ -85,10 +86,10 @@ export interface DefHandle {
 
 // render-time 句柄：构造模板 + 只读读取视图（read）
 // 注意：这里不叫 run，避免和 callback-time 的 run 混淆
-export interface RenderReadHandle {
-  props: RunHandle["props"];
-  context: RunHandle["context"];
-  state: RunHandle["state"];
+export interface RenderReadHandle<Props extends PropsBaseType> {
+  props: RunHandle<Props>["props"];
+  context: RunHandle<Props>["context"];
+  state: RunHandle<Props>["state"];
 }
 
 export interface ReservedFactories {
@@ -105,8 +106,40 @@ export interface ElementFactory {
   ): TemplateNode;
 }
 
-export interface RendererHandle {
+export interface RendererHandle<Props extends PropsBaseType> {
   el: ElementFactory;
   r: ReservedFactories;
-  read: RenderReadHandle; // render 阶段可用的 readonly 快照视图
+  read: RenderReadHandle<Props>; // render 阶段可用的 readonly 快照视图
 }
+
+/**
+ * Resolved props snapshot type:
+ * - Shape is P
+ * - Values are whatever component author declared in P (including nulls if they want them)
+ *
+ * Note: runtime canonicalization (undefined -> null) is a policy detail; TS can only reflect it
+ * if author chose to include null in P[K]. That’s intentional to avoid lying types.
+ */
+export type PropsSnapshot<P extends PropsBaseType> = Readonly<P>;
+
+/** Defaults should be aligned to Props shape. */
+export type PropsDefaults<P extends PropsBaseType> = Partial<P>;
+
+export type WatchInfo<P extends PropsBaseType> = {
+  changedKeysAll: Array<keyof P & string>;
+  changedKeysMatched: Array<keyof P & string>;
+};
+
+export type PropsWatchCallback<P extends PropsBaseType> = (
+  run: RunHandle<P>,
+  next: PropsSnapshot<P>,
+  prev: PropsSnapshot<P>,
+  info: WatchInfo<P>
+) => void;
+
+export type RawWatchCallback<P extends PropsBaseType> = (
+  run: RunHandle<P>,
+  nextRaw: Readonly<P & PropsBaseType>,
+  prevRaw: Readonly<P & PropsBaseType>,
+  info: WatchInfo<P & PropsBaseType>
+) => void;

@@ -6,7 +6,7 @@ import { PropsManager } from "@proto-ui/props";
  * Contract Doc: internal/contracts/props/define-merge.v0.md
  *
  * NOTE:
- * This test suite currently reflects the **implementation behavior** of mergeDecls.
+ * This test suite currently reflects the **implementation behavior** of mergeSpecs.
  * If you decide to forbid "adding new constraints" (enum/range from none -> some),
  * update both contract doc and tests accordingly.
  */

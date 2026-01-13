@@ -9,15 +9,16 @@ import type {
 import { illegalPhase } from "./guard";
 import type { RuleSpec } from "@proto-ui/rule";
 import { PropsManager } from "@proto-ui/props";
+import type { PropsBaseType } from "@proto-ui/types";
 import { RuleRegistry } from "./rule";
 
 export type LifecycleKind = "created" | "mounted" | "updated" | "unmounted";
 
-export interface LifecycleRegistry {
-  created: Array<(run: RunHandle) => void>;
-  mounted: Array<(run: RunHandle) => void>;
-  updated: Array<(run: RunHandle) => void>;
-  unmounted: Array<(run: RunHandle) => void>;
+export interface LifecycleRegistry<P extends PropsBaseType> {
+  created: Array<(run: RunHandle<P>) => void>;
+  mounted: Array<(run: RunHandle<P>) => void>;
+  updated: Array<(run: RunHandle<P>) => void>;
+  unmounted: Array<(run: RunHandle<P>) => void>;
 }
 
 export interface DefRuntimeState {
@@ -25,17 +26,19 @@ export interface DefRuntimeState {
   prototypeName: string;
 }
 
-export function createLifecycleRegistry(): LifecycleRegistry {
+export function createLifecycleRegistry<
+  P extends PropsBaseType
+>(): LifecycleRegistry<P> {
   return { created: [], mounted: [], updated: [], unmounted: [] };
 }
 
-export function createDefHandle(
+export const createDefHandle = <P extends PropsBaseType>(
   st: DefRuntimeState,
-  life: LifecycleRegistry,
-  props: PropsManager,
+  life: LifecycleRegistry<P>,
+  props: PropsManager<P>,
   feedbackStyle: FeedbackStyleRecorder,
   rules: RuleRegistry
-): DefHandle {
+): DefHandle<P> => {
   const ensureSetup = (op: string) => {
     const phase = st.getPhase();
     if (phase !== "setup") {
@@ -69,9 +72,9 @@ export function createDefHandle(
     },
 
     props: {
-      define(decl) {
+      define(specMap) {
         ensureSetup(`def.props.define`);
-        props.define(decl);
+        props.define(specMap);
       },
       setDefaults(partial) {
         ensureSetup(`def.props.setDefaults`);
@@ -133,4 +136,4 @@ export function createDefHandle(
       rules.define(spec as any);
     },
   };
-}
+};

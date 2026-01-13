@@ -1,7 +1,7 @@
 // packages/adapter-web-component/test/slot-light-dom.test.ts
 import { describe, it, expect } from "vitest";
 import type { Prototype } from "@proto-ui/core";
-import { defineWebComponent } from "@proto-ui/adapter-web-component";
+import { AdaptToWebComponent } from "@proto-ui/adapter-web-component";
 
 describe("adapter-web-component light DOM slot (v0)", () => {
   it("projects initial light children into slot position; <slot> must not exist in DOM", () => {
@@ -12,7 +12,7 @@ describe("adapter-web-component light DOM slot (v0)", () => {
       },
     };
 
-    defineWebComponent(P); // default: shadow=false (light DOM)
+    AdaptToWebComponent(P); // default: shadow=false (light DOM)
 
     const el = document.createElement("x-light-slot-1") as any;
 
@@ -42,7 +42,7 @@ describe("adapter-web-component light DOM slot (v0)", () => {
       },
     };
 
-    defineWebComponent(P);
+    AdaptToWebComponent(P);
 
     const el = document.createElement("x-light-slot-2") as any;
     el.innerHTML = `<em>x</em><strong>y</strong>`;
@@ -62,7 +62,7 @@ describe("adapter-web-component light DOM slot (v0)", () => {
       },
     };
 
-    defineWebComponent(P);
+    AdaptToWebComponent(P);
 
     const el = document.createElement("x-light-slot-3") as any;
 
@@ -86,7 +86,7 @@ describe("adapter-web-component light DOM slot (v0)", () => {
       },
     };
 
-    defineWebComponent(P);
+    AdaptToWebComponent(P);
 
     const el = document.createElement("x-light-slot-4") as any;
     el.innerHTML = `<span>x</span>`;
@@ -111,7 +111,7 @@ describe("adapter-web-component light DOM slot (v0)", () => {
       },
     };
 
-    defineWebComponent(P);
+    AdaptToWebComponent(P);
     const el = document.createElement("x-light-slot-mo") as any;
     document.body.appendChild(el);
 

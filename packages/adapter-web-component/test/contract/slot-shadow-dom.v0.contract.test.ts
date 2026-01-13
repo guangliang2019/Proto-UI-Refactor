@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { Prototype } from "@proto-ui/core";
-import { defineWebComponent } from "@proto-ui/adapter-web-component";
+import { AdaptToWebComponent } from "@proto-ui/adapter-web-component";
 
 describe("contract: adapter-web-component / slot shadow-dom (v0)", () => {
   it("shadow=true: slot renders as real <slot>", () => {
@@ -11,7 +11,7 @@ describe("contract: adapter-web-component / slot shadow-dom (v0)", () => {
       },
     };
 
-    defineWebComponent(P, { shadow: true });
+    AdaptToWebComponent(P, { shadow: true });
 
     const el = document.createElement("x-contract-shadow-slot-1") as any;
     document.body.appendChild(el);

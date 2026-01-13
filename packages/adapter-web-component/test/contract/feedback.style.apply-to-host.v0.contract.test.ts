@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { Prototype } from "@proto-ui/core";
 import { tw } from "@proto-ui/core";
-import { defineWebComponent } from "../../src/define";
+import { AdaptToWebComponent } from "../../src/adapt";
 
 describe("adapter-web-component: feedback.style.apply-to-host v0", () => {
   it("applies setup-time feedback tokens onto custom element host and preserves user classes", () => {
@@ -13,7 +13,7 @@ describe("adapter-web-component: feedback.style.apply-to-host v0", () => {
       },
     } as any;
 
-    const El = defineWebComponent(proto);
+    const El = AdaptToWebComponent(proto);
 
     const el = new El();
     el.className = "user-a";

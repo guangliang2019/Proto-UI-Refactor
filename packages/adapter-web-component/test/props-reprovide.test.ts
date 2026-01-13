@@ -1,13 +1,13 @@
 // packages/adapter-web-component/test/props-reprovide.test.ts
 
 import { it, expect } from "vitest";
-import { defineWebComponent } from "../src/define";
+import { AdaptToWebComponent } from "../src/adapt";
 import { setElementProps } from "../src/props";
 
 it("props re-provide triggers watch but does not render until update()", async () => {
   let watched = 0;
 
-  defineWebComponent({
+  AdaptToWebComponent({
     name: "x-props",
     setup(def) {
       def.props.define({ value: { kind: "number", default: 1 } });
@@ -45,7 +45,7 @@ it('empty="accept": provided null becomes null, missing still uses default; re-p
   let watched = 0;
   let rendered = 0;
 
-  defineWebComponent({
+  AdaptToWebComponent({
     name,
     setup(def) {
       def.props.define({

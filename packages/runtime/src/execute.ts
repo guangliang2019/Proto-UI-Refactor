@@ -18,6 +18,7 @@ import {
 import type { RuntimeHost } from "./host";
 import { FeedbackStyleRecorder } from "@proto-ui/core";
 import { PropsManager } from "@proto-ui/props";
+import type { PropsBaseType } from "@proto-ui/types";
 import { RuleRegistry } from "./rule";
 
 type Phase = "setup" | "render" | "callback" | "unknown";
@@ -28,10 +29,10 @@ export interface ExecuteOptions {
   state?: Map<any, any>;
 }
 
-export interface ExecuteResult {
+export interface ExecuteResult<P extends PropsBaseType> {
   children: TemplateChildren;
-  lifecycle: LifecycleRegistry;
-  invoke(kind: keyof LifecycleRegistry): void;
+  lifecycle: LifecycleRegistry<P>;
+  invoke(kind: keyof LifecycleRegistry<P>): void;
 }
 
 export interface RuntimeController {
@@ -48,10 +49,10 @@ export interface RuntimeController {
  * Pure in-memory executor (used by internal specimens).
  * Does not commit to any host.
  */
-export function executePrototype(
-  proto: Prototype,
+export function executePrototype<P extends PropsBaseType>(
+  proto: Prototype<P>,
   opt: ExecuteOptions = {}
-): ExecuteResult {
+): ExecuteResult<P> {
   let phase: Phase = "unknown";
 
   const st = {
@@ -62,7 +63,7 @@ export function executePrototype(
   const lifecycle = createLifecycleRegistry();
 
   // ✅ create props manager for setup-only props APIs
-  const propsMgr = new PropsManager();
+  const propsMgr = new PropsManager<P>();
   const feedbackStyle = new FeedbackStyleRecorder();
   const rules = new RuleRegistry();
 
@@ -83,7 +84,7 @@ export function executePrototype(
   propsMgr.applyRaw({ ...(opt.props ?? {}) });
 
   // Run / Read (mock)
-  const run: RunHandle = {
+  const run: RunHandle<P> = {
     update: () => {
       throw new Error(
         `[Runtime] run.update() is not supported in executePrototype().`
@@ -112,20 +113,20 @@ export function executePrototype(
     },
   };
 
-  const read: RenderReadHandle = {
+  const read: RenderReadHandle<P> = {
     props: run.props,
     context: run.context,
     state: run.state,
   };
 
   const { el, r } = createRendererPrimitives();
-  const renderer: RendererHandle = { el, r, read };
+  const renderer: RendererHandle<P> = { el, r, read };
 
   // Render
   phase = "render";
   const children = render(renderer);
 
-  const invoke = (kind: keyof LifecycleRegistry) => {
+  const invoke = (kind: keyof LifecycleRegistry<P>) => {
     phase = "callback";
     for (const cb of lifecycle[kind]) cb(run);
     phase = "unknown";
@@ -154,15 +155,15 @@ export interface ExecuteWithHostResult {
   invokeUnmounted(): void;
 }
 
-export function executeWithHost(
-  proto: Prototype,
-  host: RuntimeHost
+export function executeWithHost<P extends PropsBaseType>(
+  proto: Prototype<P>,
+  host: RuntimeHost<P>
 ): ExecuteWithHostResult {
   let phase: Phase = "unknown";
 
   const st = { prototypeName: proto.name, getPhase: () => phase as any };
   const lifecycle = createLifecycleRegistry();
-  const propsMgr = new PropsManager();
+  const propsMgr = new PropsManager<P>();
   const feedbackStyle = new FeedbackStyleRecorder();
   const rules = new RuleRegistry();
 
@@ -182,7 +183,7 @@ export function executeWithHost(
   const read = host.getRenderRead();
 
   // will be filled later
-  let renderer: RendererHandle;
+  let renderer: RendererHandle<P>;
 
   // init props BEFORE created; hydration shouldn't trigger watches
   propsMgr.applyRaw({ ...(host.getRawProps() ?? {}) });
@@ -193,7 +194,7 @@ export function executeWithHost(
     getRaw: () => propsMgr.getRaw(),
     isProvided: (k: string) => propsMgr.isProvided(k),
   };
-  (run as any).props = propsAPI;
+
   (read as any).props = propsAPI;
 
   const { el, r } = createRendererPrimitives();

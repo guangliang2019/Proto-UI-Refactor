@@ -4,16 +4,17 @@ import type {
   RunHandle,
   TemplateChildren,
 } from "@proto-ui/core";
+import { PropsBaseType } from "@proto-ui/types";
 
-export interface RuntimeHost {
+export interface RuntimeHost<P extends PropsBaseType> {
   /** For diagnostics / errors */
   readonly prototypeName: string;
 
   /** Render-time readonly view */
-  getRenderRead(): RenderReadHandle;
+  getRenderRead(): RenderReadHandle<P>;
 
   /** Callback-time runtime handle */
-  getRunHandle(): RunHandle;
+  getRunHandle(): RunHandle<P>;
 
   /** Commit HostRoot children to the host platform */
   commit(children: TemplateChildren): void;
@@ -22,5 +23,5 @@ export interface RuntimeHost {
   schedule(task: () => void): void;
 
   /** host must provide raw props snapshot (may include undeclared keys) */
-  getRawProps(): Readonly<Record<string, any>>;
+  getRawProps(): Readonly<P & PropsBaseType>;
 }

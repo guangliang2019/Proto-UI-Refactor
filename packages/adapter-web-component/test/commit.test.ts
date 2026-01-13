@@ -1,7 +1,7 @@
 // packages/adapter-web-component/test/commit.test.ts
 import { describe, it, expect } from "vitest";
 import type { Prototype } from "@proto-ui/core";
-import { defineWebComponent } from "@proto-ui/adapter-web-component";
+import { AdaptToWebComponent } from "@proto-ui/adapter-web-component";
 
 describe("adapter-web-component v0", () => {
   it("renders basic string element and text", () => {
@@ -12,7 +12,7 @@ describe("adapter-web-component v0", () => {
       },
     };
 
-    defineWebComponent(P);
+    AdaptToWebComponent(P);
 
     const el = document.createElement("x-basic") as any;
     document.body.appendChild(el);
@@ -29,7 +29,7 @@ describe("adapter-web-component v0", () => {
       },
     };
 
-    defineWebComponent(P);
+    AdaptToWebComponent(P);
 
     const el = document.createElement("x-array") as any;
     document.body.appendChild(el);
@@ -46,7 +46,7 @@ describe("adapter-web-component v0", () => {
       },
     };
   
-    defineWebComponent(P, { shadow: true }); // ✅ 强制 shadow
+    AdaptToWebComponent(P, { shadow: true }); // ✅ 强制 shadow
   
     const el = document.createElement("x-slot") as any;
     document.body.appendChild(el);
@@ -68,7 +68,7 @@ describe("adapter-web-component v0", () => {
       },
     };
 
-    defineWebComponent(P);
+    AdaptToWebComponent(P);
 
     const el = document.createElement("x-life") as any;
     document.body.appendChild(el);

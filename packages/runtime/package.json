@@ -6,7 +6,8 @@
   "dependencies": {
     "@proto-ui/core": "workspace:*",
     "@proto-ui/props": "workspace:*",
-    "@proto-ui/rule": "workspace:*"
+    "@proto-ui/rule": "workspace:*",
+    "@proto-ui/types": "workspace:*"
   },
   "exports": {
     ".": {

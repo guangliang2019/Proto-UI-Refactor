@@ -6,10 +6,12 @@
     "tsx": "^4.0.0",
     "typescript": "^5.0.0",
     "vitest": "^2.0.0",
-    "happy-dom": "^15.0.0"
+    "happy-dom": "^15.0.0",
+    "@proto-ui/types": "workspace:*"
   },
   "scripts": {
-    "specimens": "tsx internal/specimens/specimens.ts",
-    "test": "vitest run"
+    "test": "pnpm -s test:types && pnpm -s test:runtime",
+    "test:types": "echo \"[types] checking type contracts...\" && tsc -p internal/contracts/types/tsconfig.json && echo \"[types] OK\"",
+    "test:runtime": "vitest run"
   }
 }

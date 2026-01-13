@@ -44,7 +44,7 @@ describe("runtime: feedback.style.setup-only v0", () => {
   });
 });
 
-function makeTestHost(prototypeName: string): RuntimeHost {
+function makeTestHost(prototypeName: string): RuntimeHost<any> {
   return {
     prototypeName,
     getRawProps: () => ({}),

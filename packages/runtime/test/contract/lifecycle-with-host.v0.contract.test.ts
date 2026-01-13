@@ -34,7 +34,7 @@ function createMockHost() {
     },
   };
 
-  const host: RuntimeHost = {
+  const host: RuntimeHost<any> = {
     prototypeName: "test-proto",
 
     getRawProps() {

@@ -1,7 +1,7 @@
 // packages/adapter-web-component/test/cases/slot-light-dom.v0.cases.ts
 
 import type { Prototype } from "@proto-ui/core";
-import { defineWebComponent } from "@proto-ui/adapter-web-component";
+import { AdaptToWebComponent } from "@proto-ui/adapter-web-component";
 
 export type LightSlotCase = {
   name: string;
@@ -23,7 +23,7 @@ export const LIGHT_SLOT_V0_CASES: LightSlotCase[] = [
         },
       };
 
-      defineWebComponent(P);
+      AdaptToWebComponent(P);
 
       const el = document.createElement("x-contract-light-slot-1") as any;
       el.innerHTML = `<span>a</span><span>b</span>`;
@@ -57,7 +57,7 @@ export const LIGHT_SLOT_V0_CASES: LightSlotCase[] = [
         },
       };
 
-      defineWebComponent(P);
+      AdaptToWebComponent(P);
 
       const el = document.createElement("x-contract-light-slot-2") as any;
       el.innerHTML = `<em>x</em><strong>y</strong>`;
@@ -84,7 +84,7 @@ export const LIGHT_SLOT_V0_CASES: LightSlotCase[] = [
         },
       };
 
-      defineWebComponent(P);
+      AdaptToWebComponent(P);
 
       const el = document.createElement("x-contract-light-slot-3") as any;
       el.appendChild(document.createTextNode("hello"));
@@ -111,7 +111,7 @@ export const LIGHT_SLOT_V0_CASES: LightSlotCase[] = [
         },
       };
 
-      defineWebComponent(P);
+      AdaptToWebComponent(P);
 
       const el = document.createElement("x-contract-light-slot-4") as any;
       el.innerHTML = `<span>x</span>`;
@@ -144,7 +144,7 @@ export const LIGHT_SLOT_V0_CASES: LightSlotCase[] = [
         },
       };
 
-      defineWebComponent(P);
+      AdaptToWebComponent(P);
 
       const el = document.createElement("x-contract-light-slot-5") as any;
       document.body.appendChild(el);
