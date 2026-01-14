@@ -42,6 +42,12 @@ importers:
         specifier: workspace:*
         version: link:../types
 
+  packages/module-base:
+    dependencies:
+      '@proto-ui/core':
+        specifier: workspace:*
+        version: link:../core
+
   packages/props:
     dependencies:
       '@proto-ui/core':

@@ -1,1 +1,13 @@
-/node_modules
+**/node_modules
+**/dist
+**/build
+**/coverage
+**/logs
+**/temp
+**/cache
+**/backup
+**/old
+**/temp
+**/cache
+**/backup
+**/old
