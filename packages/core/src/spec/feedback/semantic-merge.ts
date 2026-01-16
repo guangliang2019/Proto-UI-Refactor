@@ -1,4 +1,4 @@
-// packages/core/src/feedback/semantic-merge.ts
+// packages/core/src/spec/feedback/semantic-merge.ts
 
 const PREFIXES_V0 = [
   // Color

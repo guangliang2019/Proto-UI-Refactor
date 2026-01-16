@@ -1,20 +1,10 @@
 // packages/runtime/src/host.ts
-import type {
-  RenderReadHandle,
-  RunHandle,
-  TemplateChildren,
-} from "@proto-ui/core";
-import { PropsBaseType } from "@proto-ui/types";
+import type { TemplateChildren } from "@proto-ui/core";
+import type { PropsBaseType } from "@proto-ui/types";
 
 export interface RuntimeHost<P extends PropsBaseType> {
   /** For diagnostics / errors */
   readonly prototypeName: string;
-
-  /** Render-time readonly view */
-  getRenderRead(): RenderReadHandle<P>;
-
-  /** Callback-time runtime handle */
-  getRunHandle(): RunHandle<P>;
 
   /** Commit HostRoot children to the host platform */
   commit(children: TemplateChildren): void;

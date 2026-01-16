@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { FeedbackStyleRecorder } from "../../src/feedback/recorder";
-import { tw } from "../../src/style";
+import { FeedbackStyleRecorder } from "../../src/spec/feedback/recorder";
+import { tw } from "../../src/spec/feedback/style";
 
 describe("feedback.recorder.v0", () => {
   it("accumulates use() and exports merged snapshot", () => {

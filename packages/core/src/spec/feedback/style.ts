@@ -1,4 +1,4 @@
-// packages/core/src/style.ts
+// packages/core/src/spec/feedback/style.ts
 
 /**
  * Style handle (v0)

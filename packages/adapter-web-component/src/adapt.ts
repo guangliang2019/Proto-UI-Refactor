@@ -1,12 +1,16 @@
 // packages/adapter-web-component/src/adapt.ts
 
-import type { Prototype, RenderReadHandle, RunHandle } from "@proto-ui/core";
+import type { Prototype } from "@proto-ui/core";
+import type { EffectsPort, StyleHandle } from "@proto-ui/core";
 import { executeWithHost, type RuntimeHost } from "@proto-ui/runtime";
 import { commitChildren } from "./commit";
 import { bindController, getElementProps, unbindController } from "./props";
 import { SlotProjector } from "./slot-projector";
 import { createOwnedTwTokenApplier } from "./feedback-style";
 import { PropsBaseType } from "@proto-ui/types";
+
+// TODO: prefer `import type { FeedbackCaps } from "@proto-ui/module-feedback";`
+import type { FeedbackCaps } from "../../module-feedback/src/types";
 
 function assertKebabCase(tag: string) {
   if (!tag.includes("-") || tag.toLowerCase() !== tag) {
@@ -59,40 +63,7 @@ export function AdaptToWebComponent<Props extends PropsBaseType>(
           return getElementProps(thisEl) ?? getProps(thisEl) ?? {};
         },
 
-        getRenderRead(): RenderReadHandle<Props> {
-          const run = this.getRunHandle();
-          return { props: run.props, context: run.context, state: run.state };
-        },
-
-        getRunHandle(): RunHandle<Props> {
-          return {
-            update: () => controller.update(),
-            props: {
-              get: () => ({} as Readonly<Props>),
-              getRaw: () => host.getRawProps(),
-              isProvided: (k: string) =>
-                Object.prototype.hasOwnProperty.call(host.getRawProps(), k),
-            },
-            context: {
-              read: (_k: any) => {
-                throw new Error(
-                  `[WC Adapter] context.read not implemented in v0`
-                );
-              },
-              tryRead: (_k: any) => undefined,
-            },
-            state: {
-              read: (_id: any) => {
-                throw new Error(
-                  `[WC Adapter] state.read not implemented in v0`
-                );
-              },
-            },
-          };
-        },
-
         commit: (children) => {
-          // shadow 模式走原生 <slot>，不需要 projector
           if (shadow) {
             commitChildren(thisRoot as any, children, { mode: "shadow" });
             this._slotProjector?.disconnect();
@@ -100,15 +71,12 @@ export function AdaptToWebComponent<Props extends PropsBaseType>(
             return;
           }
 
-          // light DOM 快路径：render 只有 slot()，直接什么都不做
-          // 此时 children 就是 light children，本来就应该留在 el 上
           if (isSlotOnly(children)) {
             this._slotProjector?.disconnect();
             this._slotProjector = null;
             return;
           }
 
-          // 需要 slot 投影能力：准备 projector
           if (!this._slotProjector)
             this._slotProjector = new SlotProjector(thisEl);
           const projector = this._slotProjector;
@@ -122,7 +90,6 @@ export function AdaptToWebComponent<Props extends PropsBaseType>(
             owned,
           });
 
-          // 这个模板是否包含 slot，决定是否启用 MO
           projector.afterCommit({
             owned,
             slotStart: res.slotStart,
@@ -131,7 +98,6 @@ export function AdaptToWebComponent<Props extends PropsBaseType>(
             enableMO: res.hasSlot,
           });
 
-          // 如果模板里没 slot，projector 也没意义（用户 appendChild 不该被“移动/吞掉”）
           if (!res.hasSlot) {
             projector.disconnect();
             this._slotProjector = null;
@@ -141,23 +107,23 @@ export function AdaptToWebComponent<Props extends PropsBaseType>(
         schedule,
       };
 
-      const { controller, invokeUnmounted } = executeWithHost(proto, host);
+      const res = executeWithHost(proto, host);
+      const { controller, invokeUnmounted, caps } = res;
 
-      // --- feedback.style (v0): apply static tokens to host element (custom element itself)
-      const feedbackApplier = createOwnedTwTokenApplier(thisEl);
-      feedbackApplier.apply([
-        ...controller.getFeedbackStyleTokens(),
-        ...controller.getRuleStyleTokens(),
-      ]);
+      // feedback module wiring: provide EffectsPort via caps controller
+      const applier = createOwnedTwTokenApplier(thisEl);
+      const effectsPort: EffectsPort = createWebEffectsPort(applier);
 
-      // expose update()
+      const feedbackCaps = caps.getCapsController<FeedbackCaps>("feedback");
+      feedbackCaps?.attach({ effects: effectsPort });
+
       (this as any).update = () => controller.update();
 
       bindController(this, controller);
 
       this._invokeUnmounted = () => {
-        // remove adapter-owned feedback tokens
-        feedbackApplier.clear();
+        feedbackCaps?.reset();
+        applier.clear();
         unbindController(this);
         invokeUnmounted();
       };
@@ -176,11 +142,9 @@ export function AdaptToWebComponent<Props extends PropsBaseType>(
   return ProtoElement;
 }
 
-// helper functions
+// --- helpers
 
 function isSlotOnly(children: any): boolean {
-  // TemplateChildren: child | child[] | null
-  // slot node: { type: { kind:"slot" }, ... }
   if (children == null) return false;
 
   const one = Array.isArray(children)
@@ -191,4 +155,35 @@ function isSlotOnly(children: any): boolean {
   if (!one || typeof one !== "object") return false;
   const t = (one as any).type;
   return t && typeof t === "object" && t.kind === "slot";
+}
+
+function createWebEffectsPort(
+  applier: ReturnType<typeof createOwnedTwTokenApplier>
+): EffectsPort {
+  let latest: StyleHandle | null = null;
+  let flushing = false;
+
+  const flush = () => {
+    if (flushing) return;
+    flushing = true;
+    try {
+      const h = latest;
+      if (!h) return;
+      if (h.kind === "tw") applier.apply(h.tokens);
+    } finally {
+      flushing = false;
+    }
+  };
+
+  return {
+    queueStyle(handle) {
+      latest = handle;
+    },
+    requestFlush() {
+      flush();
+    },
+    flushNow() {
+      flush();
+    },
+  };
 }

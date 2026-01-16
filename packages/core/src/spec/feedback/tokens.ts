@@ -1,4 +1,4 @@
-// packages/core/src/feedback/tokens.ts
+// packages/core/src/spec/feedback/tokens.ts
 
 /**
  * Validate a Tailwind-flavored token for feedback v0.

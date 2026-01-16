@@ -1,6 +1,6 @@
-// packages/core/src/feedback/recorder.ts
+// packages/core/src/spec/feedback/recorder.ts
 
-import type { StyleHandle } from "../style";
+import type { StyleHandle } from "./style";
 import { mergeTwTokensV0 } from "./semantic-merge";
 import { assertTwTokenV0 } from "./tokens";
 

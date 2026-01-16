@@ -11,6 +11,8 @@ import type { RuleSpec } from "@proto-ui/rule";
 import { PropsManager } from "@proto-ui/props";
 import type { PropsBaseType } from "@proto-ui/types";
 import { RuleRegistry } from "./rule";
+import { ModuleHub } from "./module-hub/types";
+import { FeedbackFacade } from "@proto-ui/module-feedback";
 
 export type LifecycleKind = "created" | "mounted" | "updated" | "unmounted";
 
@@ -36,9 +38,11 @@ export const createDefHandle = <P extends PropsBaseType>(
   st: DefRuntimeState,
   life: LifecycleRegistry<P>,
   props: PropsManager<P>,
-  feedbackStyle: FeedbackStyleRecorder,
-  rules: RuleRegistry
+  rules: RuleRegistry,
+  modules: ModuleHub
 ): DefHandle<P> => {
+  const facades = modules.getFacades();
+  const feedback = facades["feedback"] as FeedbackFacade;
   const ensureSetup = (op: string) => {
     const phase = st.getPhase();
     if (phase !== "setup") {
@@ -98,31 +102,11 @@ export const createDefHandle = <P extends PropsBaseType>(
       },
     },
 
-    context: {
-      subscribe(key) {
-        ensureSetup(`def.context.subscribe`);
-        // placeholder: record subscription intent later
-        void key;
-      },
-      trySubscribe(key) {
-        ensureSetup(`def.context.trySubscribe`);
-        void key;
-      },
-    },
-
-    state: {
-      define(id, options) {
-        ensureSetup(`def.state.define`);
-        void id;
-        void options;
-      },
-    },
-
     feedback: {
       style: {
         use: (...handles: StyleHandle[]) => {
           ensureSetup(`def.feedback.style.use`);
-          const unUse = feedbackStyle.use(...handles);
+          const unUse = feedback.style.use(...handles);
           return () => {
             ensureSetup(`def.feedback.style.use:unUse`);
             unUse();

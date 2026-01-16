@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { mergeTwTokensV0 } from "../../src/feedback/semantic-merge";
+import { mergeTwTokensV0 } from "../../src/spec/feedback/semantic-merge";
 
 describe("feedback.semantic-merge.v0", () => {
   it("last-wins within same semantic group", () => {

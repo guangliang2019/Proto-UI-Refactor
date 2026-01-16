@@ -1,13 +1,13 @@
 // packages/core/src/handles.ts
 import { PropsBaseType, PropsSpecMap } from "@proto-ui/types";
-import { UnUse } from "./feedback";
-import { StyleHandle } from "./style";
-import type {
+import {
+  UnUse,
+  StyleHandle,
   TemplateType,
   TemplateProps,
   TemplateChildren,
   TemplateNode,
-} from "./template";
+} from "./spec";
 
 // 统一错误上下文，方便在 runtime 做 phase guard 时给出可诊断信息
 
@@ -35,14 +35,6 @@ export interface RunHandle<Props extends PropsBaseType> {
     getRaw(): Readonly<Props & PropsBaseType>;
     isProvided(key: keyof Props): boolean;
   };
-  context: {
-    read(key: any): any;
-    tryRead(key: any): any;
-  };
-  state: {
-    read(id: any): any;
-    set?(id: any, value: any): void;
-  };
 }
 
 export interface DefHandle<Props extends PropsBaseType> {
@@ -66,15 +58,6 @@ export interface DefHandle<Props extends PropsBaseType> {
     watchRawAll(cb: RawWatchCallback<Props & PropsBaseType>): void;
   };
 
-  context: {
-    subscribe(key: any): void;
-    trySubscribe(key: any): void;
-  };
-
-  state: {
-    define(id: any, options?: any): void;
-  };
-
   feedback: {
     style: {
       use: (...handles: StyleHandle[]) => UnUse;
@@ -88,8 +71,6 @@ export interface DefHandle<Props extends PropsBaseType> {
 // 注意：这里不叫 run，避免和 callback-time 的 run 混淆
 export interface RenderReadHandle<Props extends PropsBaseType> {
   props: RunHandle<Props>["props"];
-  context: RunHandle<Props>["context"];
-  state: RunHandle<Props>["state"];
 }
 
 export interface ReservedFactories {

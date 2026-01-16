@@ -1,7 +1,7 @@
 // packages/core/src/template.ts
 
-import type { PrototypeRef } from "./prototype";
-import type { TemplateStyleHandle } from "./style";
+import type { PrototypeRef } from "../prototype";
+import type { TemplateStyleHandle } from "./feedback/style";
 
 /**
  * Template is the platform-agnostic render blueprint.

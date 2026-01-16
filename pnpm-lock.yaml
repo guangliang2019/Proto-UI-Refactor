@@ -48,6 +48,15 @@ importers:
         specifier: workspace:*
         version: link:../core
 
+  packages/module-feedback:
+    dependencies:
+      '@proto-ui/core':
+        specifier: workspace:*
+        version: link:../core
+      '@proto-ui/module-base':
+        specifier: workspace:*
+        version: link:../module-base
+
   packages/props:
     dependencies:
       '@proto-ui/core':
@@ -71,6 +80,12 @@ importers:
       '@proto-ui/core':
         specifier: workspace:*
         version: link:../core
+      '@proto-ui/module-base':
+        specifier: workspace:*
+        version: link:../module-base
+      '@proto-ui/module-feedback':
+        specifier: workspace:*
+        version: link:../module-feedback
       '@proto-ui/props':
         specifier: workspace:*
         version: link:../props

@@ -14,7 +14,6 @@ export interface ModuleFacade {
 export interface ModuleInternal {
   // runtime orchestration SPI
   onProtoPhase?(phase: ProtoPhase): void;
-  onCapsEpoch?(epoch: number): void;
   // optional: called by runtime after structural commit
   afterRenderCommit?(): void;
 }

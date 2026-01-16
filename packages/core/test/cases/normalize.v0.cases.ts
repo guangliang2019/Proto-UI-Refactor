@@ -1,5 +1,5 @@
 // packages/core/test/cases/normalize.v0.cases.ts
-import { normalizeChildren } from "../../src/template";
+import { normalizeChildren } from "../../src/spec/template";
 
 export type NormalizeCase = {
   name: string;

@@ -6,7 +6,8 @@ import {
   TemplateProps,
   type NormalizeOptions,
   type TemplateChildren,
-} from "./template";
+  isTemplateStyleHandle,
+} from "./spec";
 
 import type {
   DefHandle,
@@ -14,7 +15,6 @@ import type {
   RendererHandle,
   ReservedFactories,
 } from "./handles";
-import { isTemplateStyleHandle } from "./style";
 
 export interface PrototypeRef {
   kind: "prototype";
