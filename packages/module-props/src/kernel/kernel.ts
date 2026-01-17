@@ -1,4 +1,4 @@
-// packages/props/src/manager.ts
+// packages/module-props/src/kernel/kernel.ts
 import type {
   EmptyBehavior,
   PropSpec,
@@ -38,7 +38,7 @@ function diffKeys<P extends PropsBaseType>(
   return changed;
 }
 
-export type PropsManagerDiag = {
+export type PropsKernelDiag = {
   level: "warning" | "error";
   message: string;
   key?: string;
@@ -48,7 +48,7 @@ type FallbackResult =
   | { ok: true; value: any; usedDefault: boolean; isNonEmpty: boolean }
   | { ok: false; usedDefault: boolean; isNonEmpty: false };
 
-export class PropsManager<P extends PropsBaseType> {
+export class PropsKernel<P extends PropsBaseType> {
   private specs: PropsSpecMap<P> = {} as PropsSpecMap<P>;
   private defaultStack: PropsDefaults<P>[] = []; // latest-first
   private prevValid: Partial<Record<keyof P, any>> = {}; // per-key previous NON-EMPTY valid
@@ -67,7 +67,7 @@ export class PropsManager<P extends PropsBaseType> {
   private watchRawAll: Array<{ cb: RawWatchCallback<P>; devWarn?: boolean }> =
     [];
 
-  private diags: PropsManagerDiag[] = [];
+  private diags: PropsKernelDiag[] = [];
   private hydrated = false;
 
   private hasObservers() {
@@ -79,18 +79,18 @@ export class PropsManager<P extends PropsBaseType> {
     );
   }
 
-  getDiagnostics(): readonly PropsManagerDiag[] {
+  getDiagnostics(): readonly PropsKernelDiag[] {
     return this.diags;
   }
 
   /** setup-only */
   define(input: PropsSpecMap<P>) {
     const { specs, diags } = mergeSpecs(this.specs, input);
-    const hasError = diags.some((d: PropsManagerDiag) => d.level === "error");
+    const hasError = diags.some((d: PropsKernelDiag) => d.level === "error");
     if (hasError) {
       const msg = diags
-        .filter((d: PropsManagerDiag) => d.level === "error")
-        .map((d: PropsManagerDiag) =>
+        .filter((d: PropsKernelDiag) => d.level === "error")
+        .map((d: PropsKernelDiag) =>
           d.key ? `${d.key}: ${d.message}` : d.message
         )
         .join("; ");

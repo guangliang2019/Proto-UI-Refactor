@@ -1,11 +1,12 @@
 {
-  "name": "@proto-ui/props",
+  "name": "@proto-ui/module-props",
   "version": "0.0.0",
   "private": true,
   "type": "module",
   "dependencies": {
     "@proto-ui/core": "workspace:*",
-    "@proto-ui/types": "workspace:*"
+    "@proto-ui/types": "workspace:*",
+    "@proto-ui/module-base": "workspace:*"
   },
   "exports": {
     ".": {

@@ -1,7 +1,7 @@
-// packages/props/test/contract/watch-raw.v0.contract.test.ts
+// packages/module-props/test/contract/watch-raw.v0.contract.test.ts
 
 import { describe, it, expect } from "vitest";
-import { PropsManager } from "@proto-ui/props";
+import { PropsKernel } from "../../src/kernel/kernel";
 
 /**
  * Watch Raw Contract v0
@@ -18,7 +18,7 @@ import { PropsManager } from "@proto-ui/props";
  */
 describe("Props watch(raw) Contract v0", () => {
   it("PROP-V0-4200: hydration (first applyRaw) never fires raw watchers", () => {
-    const pm = new PropsManager();
+    const pm = new PropsKernel<any>();;
     pm.define({ a: { kind: "number", default: 1 } });
 
     let calledAll = 0;
@@ -39,7 +39,7 @@ describe("Props watch(raw) Contract v0", () => {
   });
 
   it("PROP-V0-4300: watchRawAll uses unionKeys(prev,next) and fires only when at least one key changed", () => {
-    const pm = new PropsManager();
+    const pm = new PropsKernel<any>();;
     pm.define({ a: { kind: "number", default: 1 } });
 
     const seen: Array<{ all: string[]; matched: string[] }> = [];
@@ -71,7 +71,7 @@ describe("Props watch(raw) Contract v0", () => {
   });
 
   it("PROP-V0-4400: watchRaw(keys) allows undeclared keys and fires only when matched keys changed", () => {
-    const pm = new PropsManager();
+    const pm = new PropsKernel<any>();;
     pm.define({ a: { kind: "number", default: 1 } });
 
     let called = 0;
@@ -105,7 +105,7 @@ describe("Props watch(raw) Contract v0", () => {
   });
 
   it("PROP-V0-4100: Object.is treats NaN as stable (NaN -> NaN does not trigger)", () => {
-    const pm = new PropsManager();
+    const pm = new PropsKernel<any>();;
     pm.define({ a: { kind: "number", default: 1 } });
   
     let calledAll = 0;
@@ -125,7 +125,7 @@ describe("Props watch(raw) Contract v0", () => {
   });
   
   it("PROP-V0-4100: Object.is distinguishes -0 and 0 (-0 -> 0 triggers)", () => {
-    const pm = new PropsManager();
+    const pm = new PropsKernel<any>();;
     pm.define({ a: { kind: "number", default: 1 } });
   
     let calledAll = 0;
@@ -146,7 +146,7 @@ describe("Props watch(raw) Contract v0", () => {
   
 
   it("PROP-V0-4600: order: raw watchers run before resolved watchers; within raw: rawAll before raw(keys)", () => {
-    const pm = new PropsManager();
+    const pm = new PropsKernel<any>();;
     pm.define({ a: { kind: "number", default: 1 } });
 
     const order: string[] = [];
@@ -178,7 +178,7 @@ describe("Props watch(raw) Contract v0", () => {
   });
 
   it("PROP-V0-4500: raw watchers record devWarn diagnostics by default; not required to de-duplicate", () => {
-    const pm = new PropsManager();
+    const pm = new PropsKernel<any>();;
     pm.define({ a: { kind: "number", default: 1 } });
 
     // register with default devWarn=true
@@ -212,7 +212,7 @@ describe("Props watch(raw) Contract v0", () => {
   });
 
   it("PROP-V0-4300/4400: run is forwarded from applyRaw(nextRaw, run) into raw callbacks", () => {
-    const pm = new PropsManager();
+    const pm = new PropsKernel<any>();;
     pm.define({ a: { kind: "number", default: 1 } });
 
     const runObj = { tag: "run" };
@@ -235,7 +235,7 @@ describe("Props watch(raw) Contract v0", () => {
   });
 
   it("PROP-V0-4400: watchRaw(keys) rejects empty key list", () => {
-    const pm = new PropsManager();
+    const pm = new PropsKernel<any>();;
     pm.define({ a: { kind: "number", default: 1 } });
 
     expect(() => pm.addWatchRaw([], () => {})).toThrow();

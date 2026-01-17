@@ -1,4 +1,4 @@
-// packages/types/src/props.ts
+// packages/module-props/src/kernel/types.ts
 import { PropsBaseType } from "@proto-ui/types";
 
 export type PropsResolveMeta<P extends PropsBaseType> = {

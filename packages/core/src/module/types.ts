@@ -1,3 +1,4 @@
+// packages/core/src/module/types.ts
 export type ModuleScope = "instance" | "host" | "singleton";
 
 export type ProtoPhase = "setup" | "mounted" | "updated" | "unmounted";
@@ -20,10 +21,15 @@ export interface ModuleInternal {
 
 export interface ModuleInstance<
   F extends ModuleFacade,
-  I extends ModuleInternal
 > {
   readonly name: string;
   readonly scope: ModuleScope;
   readonly facade: F;
-  readonly internal: I;
+  readonly hooks: ModuleHooks;
+}
+
+export interface ModuleHooks {
+  onProtoPhase?(phase: ProtoPhase): void;
+  afterRenderCommit?(): void;
+  dispose?(): void;
 }

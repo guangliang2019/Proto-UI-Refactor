@@ -41,18 +41,6 @@ function createMockHost() {
       return {};
     },
 
-    getRunHandle() {
-      return run as any;
-    },
-
-    getRenderRead() {
-      return {
-        props: run.props as any,
-        context: run.context as any,
-        state: run.state as any,
-      };
-    },
-
     commit(children) {
       calls.push("commit");
       commits.push(children);

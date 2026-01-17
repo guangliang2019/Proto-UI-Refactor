@@ -1,6 +1,6 @@
 import { TemplateChildren } from "@proto-ui/core";
 import { PropsBaseType } from "@proto-ui/types";
-import { LifecycleRegistry } from "../def";
+import { LifecycleRegistry } from "../handles/def";
 import { ModuleHub } from "../module-hub";
 
 type Phase = "setup" | "render" | "callback" | "unknown";
@@ -16,7 +16,9 @@ export interface ExecuteResult<P extends PropsBaseType> {
 }
 
 export interface RuntimeController {
-  applyProps(nextRaw: Record<string, any>): void; // no render
+
+  applyRawProps(nextRaw: Record<string, any>): void;
+
   update(): void; // render + commit (host only)
 
   /** v0: evaluate rule -> style tokens (props only for now) */

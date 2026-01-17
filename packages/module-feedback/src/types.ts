@@ -34,10 +34,7 @@ export interface FeedbackInternal extends ModuleInternal {
   afterRenderCommit(): void;
 }
 
-export type FeedbackModule = ModuleInstance<
-  FeedbackFacade,
-  FeedbackInternal
-> & {
+export type FeedbackModule = ModuleInstance<FeedbackFacade> & {
   name: "feedback";
   scope: ModuleScope;
 };

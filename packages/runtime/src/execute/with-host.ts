@@ -1,34 +1,47 @@
+// packages/runtime/src/execute/with-host.ts
 import { Prototype } from "@proto-ui/core";
 import { PropsBaseType } from "@proto-ui/types";
 import { RuntimeHost } from "../host";
 import { ExecuteWithHostResult, RuntimeController } from "./types";
 import { createEngine } from "./engine";
+import type { PropsFacade, PropsPort } from "@proto-ui/module-props";
 
 export function executeWithHost<P extends PropsBaseType>(
   proto: Prototype<P>,
   host: RuntimeHost<P>
 ): ExecuteWithHostResult {
-  // build engine with initial raw props from host
   const engine = createEngine(proto, {
-    initialRawProps: { ...(host.getRawProps?.() ?? {}) },
     allowRunUpdate: true,
   });
 
-  const { lifecycle, propsMgr, rules, moduleHub, run } = engine;
+  const { lifecycle, rules, moduleHub, run } = engine;
 
-  // host-commit wrapper
+  const facades = moduleHub.getFacades();
+  const propsFacade = facades["props"] as PropsFacade<P>;
+
+  const propsPort = moduleHub.getPort<PropsPort<P>>("props");
+  if (!propsPort) {
+    throw new Error("props port not found");
+  }
+
+  // initial props hydration (before any callbacks + before initial render)
+  propsPort.applyRaw({ ...(host.getRawProps?.() ?? {}) }, run);
+
   const doRenderCommit = (kind: "initial" | "update") => {
-    const children = engine.renderOnce();
+    // pull latest raw before rendering (covers rawPropsSource changes not going through applyProps)
+    propsPort.syncFromHost(run);
 
+    const children = engine.renderOnce();
     host.commit(children);
 
-    // structural commit happened; allow modules to re-apply effects if needed
     moduleHub.afterRenderCommit();
 
     if (kind === "update") {
       moduleHub.setProtoPhase("updated");
 
       engine.setPhase("callback");
+      // callbacks should see synced props already; but sync again is cheap & deterministic
+      propsPort.syncFromHost(run);
       for (const cb of lifecycle.updated) cb(run);
       engine.setPhase("unknown");
     }
@@ -36,18 +49,24 @@ export function executeWithHost<P extends PropsBaseType>(
     return children;
   };
 
-  // runtime controller (hostful)
   let controller!: RuntimeController;
 
   controller = {
-    applyProps(nextRaw) {
-      propsMgr.applyRaw({ ...(nextRaw ?? {}) }, run);
+    applyRawProps(nextRaw) {
+      // IMPORTANT:
+      // - this must trigger watches
+      // - but must NOT render/commit
+      console.log("applyRawProps", nextRaw);
+      propsPort.applyRaw({ ...(nextRaw ?? {}) }, run);
     },
     update() {
       doRenderCommit("update");
     },
     getRuleStyleTokens() {
-      const current = propsMgr.get();
+      // style token evaluation must see latest resolved props,
+      // so sync once here too (covers rare “raw changed outside applyProps” cases)
+      propsPort.syncFromHost(run);
+      const current = propsFacade.get();
       return rules.evaluateStyleTokens(current);
     },
   };
@@ -57,32 +76,31 @@ export function executeWithHost<P extends PropsBaseType>(
 
   // created callbacks: once, before first commit
   engine.setPhase("callback");
+  propsPort.syncFromHost(run);
   for (const cb of lifecycle.created) cb(run);
   engine.setPhase("unknown");
 
   // initial commit
   const children = doRenderCommit("initial");
 
-  // commit done => module phase enters mounted synchronously (no schedule)
+  // commit done => module phase enters mounted synchronously
   moduleHub.setProtoPhase("mounted");
 
   // mounted callbacks: host-scheduled (contract)
   host.schedule(() => {
     engine.setPhase("callback");
+    propsPort.syncFromHost(run);
     for (const cb of lifecycle.mounted) cb(run);
     engine.setPhase("unknown");
   });
 
   const invokeUnmounted = () => {
-    // tell modules first
     moduleHub.setProtoPhase("unmounted");
     moduleHub.dispose();
 
     engine.setPhase("callback");
     for (const cb of lifecycle.unmounted) cb(run);
     engine.setPhase("unknown");
-
-    propsMgr.dispose();
   };
 
   engine.setPhase("unknown");

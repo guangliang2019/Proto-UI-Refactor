@@ -1,6 +1,6 @@
+// packages/runtime/src/execute/engine.ts
 import {
   createRendererPrimitives,
-  FeedbackStyleRecorder,
   Phase,
   Prototype,
   RendererHandle,
@@ -13,12 +13,17 @@ import { PropsBaseType } from "@proto-ui/types";
 import {
   createDefHandle,
   createLifecycleRegistry,
+  createRunHandle,
   LifecycleRegistry,
-} from "../def";
-import { PropsManager } from "@proto-ui/props";
+} from "../handles";
 import { RuleRegistry } from "../rule";
 import { ModuleHub, RuntimeModuleHub } from "../module-hub";
 import { createFeedbackModule } from "@proto-ui/module-feedback";
+import {
+  createPropsModule,
+  type PropsFacade,
+  type PropsPort,
+} from "@proto-ui/module-props";
 
 export type Engine<P extends PropsBaseType> = {
   // state
@@ -27,7 +32,6 @@ export type Engine<P extends PropsBaseType> = {
 
   // runtime resources
   lifecycle: LifecycleRegistry<P>;
-  propsMgr: PropsManager<P>;
   rules: RuleRegistry;
 
   // modules
@@ -46,7 +50,7 @@ export type Engine<P extends PropsBaseType> = {
 
 export function createEngine<P extends PropsBaseType>(
   proto: Prototype<P>,
-  opt?: { initialRawProps?: Record<string, any>; allowRunUpdate?: boolean }
+  opt?: { allowRunUpdate?: boolean }
 ): Engine<P> {
   let phase: Phase = "unknown";
 
@@ -56,59 +60,53 @@ export function createEngine<P extends PropsBaseType>(
   };
 
   const lifecycle = createLifecycleRegistry<P>();
-
-  const propsMgr = new PropsManager<P>();
-
   const rules = new RuleRegistry();
 
   const moduleHub = new RuntimeModuleHub({ prototypeName: proto.name }, [
     { name: "feedback", create: createFeedbackModule },
+    { name: "props", create: createPropsModule },
   ]);
 
-  const def = createDefHandle(st, lifecycle, propsMgr, rules, moduleHub);
+  const def = createDefHandle<P>(st, lifecycle, rules, moduleHub);
 
   // setup
   phase = "setup";
   const maybeRender = proto.setup(def);
-
   const renderFn: RenderFn = maybeRender ?? ((renderer) => [renderer.r.slot()]);
-
-  // init props (before any callbacks)
-  propsMgr.applyRaw({ ...((opt?.initialRawProps ?? {}) as any) });
 
   // controller is host-level concept; in pure engine run.update is gated
   let runUpdateImpl: (() => void) | undefined = undefined;
   if (opt?.allowRunUpdate) {
-    // will be assigned by executeWithHost
     runUpdateImpl = () => {
       throw new Error(`[Runtime] run.update() is not wired yet.`);
     };
   }
 
-  const run: RunHandle<P> = {
-    update: () => {
-      if (!runUpdateImpl) {
-        throw new Error(
-          `[Runtime] run.update() is not supported in host-free execution.`
-        );
-      }
-      runUpdateImpl();
-    },
-    props: {
-      get: () => propsMgr.get(),
-      getRaw: () => propsMgr.getRaw(),
-      isProvided: (k: string) => propsMgr.isProvided(k),
-    },
-  };
+  const run = createRunHandle<P>(() => {
+    if (!runUpdateImpl) {
+      throw new Error(
+        `[Runtime] run.update() is not supported in host-free execution.`
+      );
+    }
+    runUpdateImpl();
+  }, moduleHub);
+
+  // props facade for read handle
+  const facades = moduleHub.getFacades();
+  const propsFacade = facades["props"] as PropsFacade<P>;
 
   const read: RenderReadHandle<P> = {
-    props: run.props,
+    props: propsFacade as any, // because RenderReadHandle expects RunHandle["props"]-shape
   };
 
   const { el, r } = createRendererPrimitives();
   const renderer: RendererHandle<P> = { el, r, read };
 
   const renderOnce = () => {
+    // before render, pull latest raw if host has any dirty changes
+    const propsPort = moduleHub.getPort<PropsPort<P>>("props");
+    propsPort?.syncFromHost();
+
     phase = "render";
     const children = renderFn(renderer);
     phase = "unknown";
@@ -116,12 +114,17 @@ export function createEngine<P extends PropsBaseType>(
   };
 
   const invoke = (kind: keyof LifecycleRegistry<P>) => {
+    const propsPort = moduleHub.getPort<PropsPort<P>>("props");
+
     phase = "callback";
+
+    // before callbacks, pull latest raw so watches can run on “no update” paths
+    propsPort?.syncFromHost(run);
+
     for (const cb of lifecycle[kind]) cb(run);
     phase = "unknown";
 
     if (kind === "unmounted") {
-      propsMgr.dispose();
       moduleHub.setProtoPhase("unmounted");
       moduleHub.dispose();
     }
@@ -133,7 +136,6 @@ export function createEngine<P extends PropsBaseType>(
       phase = p;
     },
     lifecycle,
-    propsMgr,
     rules,
     moduleHub,
     run,

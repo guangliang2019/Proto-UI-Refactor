@@ -9,8 +9,8 @@ import { SlotProjector } from "./slot-projector";
 import { createOwnedTwTokenApplier } from "./feedback-style";
 import { PropsBaseType } from "@proto-ui/types";
 
-// TODO: prefer `import type { FeedbackCaps } from "@proto-ui/module-feedback";`
-import type { FeedbackCaps } from "../../module-feedback/src/types";
+import type { FeedbackCaps } from "@proto-ui/module-feedback";
+import type { PropsCaps, RawPropsSource } from "@proto-ui/module-props";
 
 function assertKebabCase(tag: string) {
   if (!tag.includes("-") || tag.toLowerCase() !== tag) {
@@ -56,11 +56,34 @@ export function AdaptToWebComponent<Props extends PropsBaseType>(
       const thisEl = this;
       const thisRoot = this._root;
 
+      const rawPropsSource: RawPropsSource<Props> = {
+        debugName: `${proto.name}#raw-props`,
+        get() {
+          // 你的现有策略保持不变：优先 attrs，其次 opt.getProps
+          return (getElementProps(thisEl) ?? getProps(thisEl) ?? {}) as any;
+        },
+        subscribe(cb) {
+          // 最小实现：监听 attributes 变化
+          const mo = new MutationObserver((records) => {
+            for (const r of records) {
+              if (r.type === "attributes") {
+                cb();
+                break;
+              }
+            }
+          });
+
+          mo.observe(thisEl, { attributes: true });
+
+          return () => mo.disconnect();
+        },
+      };
+
       const host: RuntimeHost<Props> = {
         prototypeName: proto.name,
 
         getRawProps() {
-          return getElementProps(thisEl) ?? getProps(thisEl) ?? {};
+          return rawPropsSource.get();
         },
 
         commit: (children) => {
@@ -109,6 +132,9 @@ export function AdaptToWebComponent<Props extends PropsBaseType>(
 
       const res = executeWithHost(proto, host);
       const { controller, invokeUnmounted, caps } = res;
+      // props module wiring: provide rawPropsSource via caps controller
+      const propsCaps = caps.getCapsController<PropsCaps<Props>>("props");
+      propsCaps?.attach({ rawPropsSource });
 
       // feedback module wiring: provide EffectsPort via caps controller
       const applier = createOwnedTwTokenApplier(thisEl);
@@ -122,6 +148,7 @@ export function AdaptToWebComponent<Props extends PropsBaseType>(
       bindController(this, controller);
 
       this._invokeUnmounted = () => {
+        propsCaps?.reset();
         feedbackCaps?.reset();
         applier.clear();
         unbindController(this);

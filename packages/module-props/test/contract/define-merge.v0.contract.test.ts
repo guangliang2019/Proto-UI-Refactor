@@ -1,5 +1,6 @@
+// packages/module-props/test/contract/define-merge.v0.contract.test.ts
 import { describe, it, expect } from "vitest";
-import { PropsManager } from "@proto-ui/props";
+import { PropsKernel } from "../../src/kernel/kernel";
 
 /**
  * Define & Merge Contract v0
@@ -13,14 +14,14 @@ import { PropsManager } from "@proto-ui/props";
 
 describe("Props Define & Merge Contract v0", () => {
   it("PROP-V0-1100: kind conflict throws", () => {
-    const pm = new PropsManager();
+    const pm = new PropsKernel<any>();
     pm.define({ a: { kind: "string" } });
 
     expect(() => pm.define({ a: { kind: "number" } as any })).toThrow();
   });
 
   it("PROP-V0-1200: empty stricter throws; looser warns; omit does not change", () => {
-    const pm = new PropsManager();
+    const pm = new PropsKernel<any>();
     pm.define({ a: { kind: "number", empty: "fallback" } });
 
     // stricter: fallback -> error
@@ -29,7 +30,7 @@ describe("Props Define & Merge Contract v0", () => {
     ).toThrow();
 
     // new manager for looser path
-    const pm2 = new PropsManager();
+    const pm2 = new PropsKernel<any>();
     pm2.define({ a: { kind: "number", empty: "error" } });
 
     // looser: error -> fallback (warning)
@@ -46,14 +47,14 @@ describe("Props Define & Merge Contract v0", () => {
     ).toBe(true);
 
     // omit empty: should not warn, should not change base empty
-    const pm3 = new PropsManager();
+    const pm3 = new PropsKernel<any>();
     pm3.define({ a: { kind: "number", empty: "error" } });
     pm3.define({ a: { kind: "number" } });
     expect(pm3.getDiagnostics().some((d) => d.key === "a")).toBe(false);
   });
 
   it("PROP-V0-1300: enum subset throws; superset warns", () => {
-    const pm = new PropsManager();
+    const pm = new PropsKernel<any>();
     pm.define({ mode: { kind: "string", enum: ["a", "b"] } });
 
     // superset => warning
@@ -67,7 +68,7 @@ describe("Props Define & Merge Contract v0", () => {
   });
 
   it("PROP-V0-1400: range narrower throws; wider warns", () => {
-    const pm = new PropsManager();
+    const pm = new PropsKernel<any>();
     pm.define({ a: { kind: "number", range: { min: 0, max: 10 } } });
 
     // wider => warning
@@ -81,7 +82,7 @@ describe("Props Define & Merge Contract v0", () => {
   });
 
   it("PROP-V0-1500: validator change throws", () => {
-    const pm = new PropsManager();
+    const pm = new PropsKernel<any>();
     const v = (x: any) => !!x;
 
     pm.define({ a: { kind: "any", validator: v } });
@@ -96,7 +97,7 @@ describe("Props Define & Merge Contract v0", () => {
   });
 
   it("PROP-V0-1600: default override warns", () => {
-    const pm = new PropsManager();
+    const pm = new PropsKernel<any>();
     pm.define({ a: { kind: "number", default: 1 } });
 
     pm.define({ a: { kind: "number", default: 2 } });
@@ -113,7 +114,7 @@ describe("Props Define & Merge Contract v0", () => {
   });
 
   it("PROP-V0-1800: failure is atomic (no partial merge applied)", () => {
-    const pm = new PropsManager();
+    const pm = new PropsKernel<any>();
     pm.define({
       a: { kind: "number", default: 1 },
       b: { kind: "string", default: "x" },

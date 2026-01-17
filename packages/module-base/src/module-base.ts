@@ -1,3 +1,4 @@
+// packages/module-base/src/module-base.ts
 import type { ProtoPhase } from "@proto-ui/core";
 import type { CapsVaultView } from "./caps-vault";
 

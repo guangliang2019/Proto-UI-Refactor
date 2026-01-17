@@ -1,7 +1,7 @@
-// packages/props/test/contract/watch-resolved.v0.contract.test.ts
+// packages/module-props/test/contract/watch-resolved.v0.contract.test.ts
 
 import { describe, it, expect } from "vitest";
-import { PropsManager } from "@proto-ui/props";
+import { PropsKernel } from "../../src/kernel/kernel";
 
 /**
  * Watch Resolved Contract v0
@@ -17,7 +17,7 @@ import { PropsManager } from "@proto-ui/props";
  */
 describe("Props watch(resolved) Contract v0", () => {
   it("PROP-V0-3200: hydration (first applyRaw) never fires resolved watchers", () => {
-    const pm = new PropsManager();
+    const pm = new PropsKernel<any>();
     pm.define({ a: { kind: "number", default: 1 } });
 
     let calledAll = 0;
@@ -38,7 +38,7 @@ describe("Props watch(resolved) Contract v0", () => {
   });
 
   it("PROP-V0-3300: watchAll fires only when at least one declared resolved key changed", () => {
-    const pm = new PropsManager();
+    const pm = new PropsKernel<any>();
     pm.define({
       a: { kind: "number", default: 1 },
       b: { kind: "number", default: 1 },
@@ -68,7 +68,7 @@ describe("Props watch(resolved) Contract v0", () => {
   });
 
   it("PROP-V0-3400: watch(keys) fires only when matched keys changed; info contains all-changed and matched-changed", () => {
-    const pm = new PropsManager();
+    const pm = new PropsKernel<any>();
     pm.define({
       a: { kind: "number", default: 1 },
       b: { kind: "number", default: 1 },
@@ -110,7 +110,7 @@ describe("Props watch(resolved) Contract v0", () => {
   });
 
   it("PROP-V0-3500: order: watchAll evaluated before keyed watches; registration order preserved within group", () => {
-    const pm = new PropsManager();
+    const pm = new PropsKernel<any>();
     pm.define({ a: { kind: "number", default: 1 } });
 
     const order: string[] = [];
@@ -131,7 +131,7 @@ describe("Props watch(resolved) Contract v0", () => {
   });
 
   it("PROP-V0-3100/3600: diff uses Object.is (NaN stable); raw change may not cause resolved change -> no watch", () => {
-    const pm = new PropsManager();
+    const pm = new PropsKernel<any>();
     pm.define({
       a: { kind: "number", default: 1, validator: (v: number) => v > 0 },
     });
@@ -159,7 +159,7 @@ describe("Props watch(resolved) Contract v0", () => {
   });
 
   it('PROP-V0-3600: empty="accept" affects resolved change only for provided-empty; missing still falls back/defaults', () => {
-    const pm = new PropsManager();
+    const pm = new PropsKernel<any>();
     pm.define({
       a: { kind: "number", default: 1, empty: "accept" },
     });
@@ -184,7 +184,7 @@ describe("Props watch(resolved) Contract v0", () => {
   });
 
   it("PROP-V0-3400: watch(keys) rejects empty key list and undeclared keys at registration time", () => {
-    const pm = new PropsManager();
+    const pm = new PropsKernel<any>();
     pm.define({ a: { kind: "number", default: 1 } });
 
     expect(() => pm.addWatch([], () => {})).toThrow();
@@ -192,7 +192,7 @@ describe("Props watch(resolved) Contract v0", () => {
   });
 
   it("PROP-V0-3300/3400: run is forwarded from applyRaw(nextRaw, run) into callbacks", () => {
-    const pm = new PropsManager();
+    const pm = new PropsKernel<any>();
     pm.define({ a: { kind: "number", default: 1 } });
 
     const runObj = { tag: "run" };

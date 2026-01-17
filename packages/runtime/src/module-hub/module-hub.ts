@@ -1,4 +1,4 @@
-// packages/runtime/src/module-host/module-host.ts
+// packages/runtime/src/module-hub/module-hub.ts
 import type { ModuleFacade, ModuleInit, ProtoPhase } from "@proto-ui/core";
 import {
   CapsVault,
@@ -43,13 +43,13 @@ export class RuntimeModuleHub implements ModuleHub {
   setProtoPhase(phase: ProtoPhase): void {
     this.phase = phase;
     for (const r of this.records) {
-      r.module.internal.onProtoPhase?.(phase);
+      r.module.hooks.onProtoPhase?.(phase);
     }
   }
 
   afterRenderCommit(): void {
     for (const r of this.records) {
-      r.module.internal.afterRenderCommit?.();
+      r.module.hooks.afterRenderCommit?.();
     }
   }
 
@@ -67,10 +67,16 @@ export class RuntimeModuleHub implements ModuleHub {
   dispose(): void {
     // If modules need explicit disposal, add ModuleInternal.dispose later.
     for (const r of this.records) {
+      r.module.hooks.dispose?.();
       // reset caps to signal detach
       r.controller.reset();
     }
     this.records = [];
     this.facades = {};
+  }
+
+  getPort<T>(moduleName: string): T | undefined {
+    const r = this.records.find((x) => x.name === moduleName);
+    return (r?.module as any).port as T | undefined;
   }
 }

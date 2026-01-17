@@ -8,6 +8,10 @@
     "@proto-ui/runtime": "workspace:*",
     "@proto-ui/types": "workspace:*"
   },
+  "devDependencies": {
+    "@proto-ui/module-feedback": "workspace:*",
+    "@proto-ui/module-props": "workspace:*"
+  },
   "exports": {
     ".": {
       "types": "./src/index.ts",

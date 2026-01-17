@@ -1,18 +1,12 @@
-// packages/runtime/src/def.ts
-
-import type {
-  DefHandle,
-  FeedbackStyleRecorder,
-  RunHandle,
-  StyleHandle,
-} from "@proto-ui/core";
-import { illegalPhase } from "./guard";
+// packages/runtime/src/handles/def.ts
+import type { DefHandle, RunHandle, StyleHandle } from "@proto-ui/core";
+import { illegalPhase } from "../guard";
 import type { RuleSpec } from "@proto-ui/rule";
-import { PropsManager } from "@proto-ui/props";
 import type { PropsBaseType } from "@proto-ui/types";
-import { RuleRegistry } from "./rule";
-import { ModuleHub } from "./module-hub/types";
+import { RuleRegistry } from "../rule";
+import { ModuleHub } from "../module-hub/types";
 import { FeedbackFacade } from "@proto-ui/module-feedback";
+import { PropsFacade } from "@proto-ui/module-props";
 
 export type LifecycleKind = "created" | "mounted" | "updated" | "unmounted";
 
@@ -37,12 +31,12 @@ export function createLifecycleRegistry<
 export const createDefHandle = <P extends PropsBaseType>(
   st: DefRuntimeState,
   life: LifecycleRegistry<P>,
-  props: PropsManager<P>,
   rules: RuleRegistry,
   modules: ModuleHub
 ): DefHandle<P> => {
   const facades = modules.getFacades();
   const feedback = facades["feedback"] as FeedbackFacade;
+  const props = facades["props"] as PropsFacade<P>;
   const ensureSetup = (op: string) => {
     const phase = st.getPhase();
     if (phase !== "setup") {
@@ -86,19 +80,19 @@ export const createDefHandle = <P extends PropsBaseType>(
       },
       watch(keys, cb) {
         ensureSetup(`def.props.watch`);
-        props.addWatch(keys, cb as any);
+        props.watch(keys, cb as any);
       },
       watchAll(cb) {
         ensureSetup(`def.props.watchAll`);
-        props.addWatchAll(cb as any);
+        props.watchAll(cb as any);
       },
       watchRaw(keys, cb) {
         ensureSetup(`def.props.watchRaw`);
-        props.addWatchRaw(keys, cb as any, true);
+        props.watchRaw(keys, cb as any);
       },
       watchRawAll(cb) {
         ensureSetup(`def.props.watchRawAll`);
-        props.addWatchRawAll(cb as any, true);
+        props.watchRawAll(cb as any);
       },
     },
 

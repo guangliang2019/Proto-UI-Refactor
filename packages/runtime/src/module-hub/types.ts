@@ -1,7 +1,6 @@
 // packages/runtime/src/module-host/types.ts
 import type {
   ModuleFacade,
-  ModuleInternal,
   ModuleInstance,
   ModuleScope,
   ProtoPhase,
@@ -9,7 +8,7 @@ import type {
 import type { CapsVault } from "@proto-ui/module-base";
 import type { CapsController } from "@proto-ui/module-base";
 
-export type AnyModule = ModuleInstance<ModuleFacade, ModuleInternal> & {
+export type AnyModule = ModuleInstance<ModuleFacade> & {
   name: string;
   scope: ModuleScope;
 };
@@ -28,6 +27,9 @@ export interface ModuleHub {
 
   /** runtime -> handles */
   getFacades(): Record<string, ModuleFacade>;
+
+  /** runtime -> ports */
+  getPort<T>(moduleName: string): T | undefined;
 
   /** runtime -> adapter */
   getCapsController<Caps extends object>(

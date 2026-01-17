@@ -1,5 +1,6 @@
+// packages/module-props/test/contract/resolve-fallback.v0.contract.test.ts
 import { describe, it, expect } from "vitest";
-import { PropsManager } from "@proto-ui/props";
+import { PropsKernel } from "../../src/kernel/kernel";
 
 /**
  * Resolve & Fallback Contract v0
@@ -15,7 +16,7 @@ describe("Props Resolve & Fallback Contract v0", () => {
    */
   describe("PROP-V0-2000 input classification", () => {
     it("missing: key not present on raw props", () => {
-      const pm = new PropsManager();
+      const pm = new PropsKernel<any>();;
       pm.define({ a: { kind: "number", default: 1 } });
 
       pm.applyRaw({});
@@ -24,7 +25,7 @@ describe("Props Resolve & Fallback Contract v0", () => {
     });
 
     it("provided-empty: null or undefined counts as provided", () => {
-      const pm = new PropsManager();
+      const pm = new PropsKernel<any>();;
       pm.define({ a: { kind: "number", default: 1 } });
 
       pm.applyRaw({ a: undefined });
@@ -41,7 +42,7 @@ describe("Props Resolve & Fallback Contract v0", () => {
    */
   describe("PROP-V0-2100 runtime APIs", () => {
     it("get() returns declared keys only and never undefined", () => {
-      const pm = new PropsManager();
+      const pm = new PropsKernel<any>();;
       pm.define({ a: { kind: "number", default: 1 } });
 
       pm.applyRaw({ a: 2, x: 9 });
@@ -52,7 +53,7 @@ describe("Props Resolve & Fallback Contract v0", () => {
     });
 
     it("getRaw() returns raw props as-is", () => {
-      const pm = new PropsManager();
+      const pm = new PropsKernel<any>();;
       pm.define({ a: { kind: "number", default: 1 } });
 
       pm.applyRaw({ a: undefined, x: 9 });
@@ -66,7 +67,7 @@ describe("Props Resolve & Fallback Contract v0", () => {
    */
   describe("PROP-V0-2200 resolved output invariants", () => {
     it("resolved snapshot always contains all declared keys", () => {
-      const pm = new PropsManager();
+      const pm = new PropsKernel<any>();;
       pm.define({
         a: { kind: "number", default: 1 },
         b: { kind: "string", default: "x" },
@@ -78,7 +79,7 @@ describe("Props Resolve & Fallback Contract v0", () => {
     });
 
     it("resolved snapshot is shallowly immutable", () => {
-      const pm = new PropsManager();
+      const pm = new PropsKernel<any>();;
       pm.define({ a: { kind: "number", default: 1 } });
 
       pm.applyRaw({});
@@ -96,7 +97,7 @@ describe("Props Resolve & Fallback Contract v0", () => {
    */
   describe('PROP-V0-2300 empty="accept"', () => {
     it("accept applies only to provided-empty, not missing", () => {
-      const pm = new PropsManager();
+      const pm = new PropsKernel<any>();;
       pm.define({
         a: { kind: "number", default: 1, empty: "accept" },
       });
@@ -111,7 +112,7 @@ describe("Props Resolve & Fallback Contract v0", () => {
     });
 
     it("accept does not convert invalid non-empty into null", () => {
-      const pm = new PropsManager();
+      const pm = new PropsKernel<any>();;
       pm.define({
         a: {
           kind: "number",
@@ -135,7 +136,7 @@ describe("Props Resolve & Fallback Contract v0", () => {
    */
   describe('PROP-V0-2400 empty="fallback"', () => {
     it("fallback chain order: prevValid > defaults > decl.default > null", () => {
-      const pm = new PropsManager();
+      const pm = new PropsKernel<any>();;
       pm.define({ a: { kind: "number", default: 1 } });
 
       pm.applyRaw({ a: 2 });
@@ -146,7 +147,7 @@ describe("Props Resolve & Fallback Contract v0", () => {
     });
 
     it("fallback resolves to null if no defaults exist", () => {
-      const pm = new PropsManager();
+      const pm = new PropsKernel<any>();;
       pm.define({ a: { kind: "number" } });
 
       pm.applyRaw({});
@@ -160,14 +161,14 @@ describe("Props Resolve & Fallback Contract v0", () => {
    */
   describe('PROP-V0-2500 empty="error"', () => {
     it("throws if missing and no valid fallback exists", () => {
-      const pm = new PropsManager();
+      const pm = new PropsKernel<any>();;
       pm.define({ a: { kind: "number", empty: "error" } });
 
       expect(() => pm.applyRaw({})).toThrow();
     });
 
     it("falls back to prevValid if available", () => {
-      const pm = new PropsManager();
+      const pm = new PropsKernel<any>();;
       pm.define({ a: { kind: "number", empty: "error" } });
 
       pm.applyRaw({ a: 2 });
@@ -184,7 +185,7 @@ describe("Props Resolve & Fallback Contract v0", () => {
    */
   describe("PROP-V0-2600 prevValid semantics", () => {
     it("null is never written to prevValid", () => {
-      const pm = new PropsManager();
+      const pm = new PropsKernel<any>();;
       pm.define({
         a: { kind: "number", default: 1, empty: "accept" },
       });
@@ -203,7 +204,7 @@ describe("Props Resolve & Fallback Contract v0", () => {
    */
   describe("PROP-V0-2700 validation semantics", () => {
     it("kind:number rejects NaN", () => {
-      const pm = new PropsManager();
+      const pm = new PropsKernel<any>();;
       pm.define({ a: { kind: "number", default: 1 } });
 
       pm.applyRaw({ a: NaN });
@@ -211,7 +212,7 @@ describe("Props Resolve & Fallback Contract v0", () => {
     });
 
     it("kind:object accepts arrays and objects", () => {
-      const pm = new PropsManager();
+      const pm = new PropsKernel<any>();;
       pm.define({ a: { kind: "object", empty: "accept" } });
 
       pm.applyRaw({ a: [] });

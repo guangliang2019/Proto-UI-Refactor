@@ -1,6 +1,6 @@
-// packages/props/test/contract/props.meta.empty-accept.v0.contract.test.ts
+// packages/module-props/test/contract/props.meta.empty-accept.v0.contract.test.ts
 import { describe, it, expect } from "vitest";
-import { PropsManager } from "@proto-ui/props";
+import { PropsKernel } from "../../src/kernel/kernel";
 import type { PropsSpecMap } from "@proto-ui/types";
 
 type P = {
@@ -15,7 +15,7 @@ const specs: PropsSpecMap<P> = {
 
 describe("props: meta semantics for empty:accept (v0)", () => {
   it("provided empty with empty:accept => resolved null; NOT invalid; is acceptedEmpty", () => {
-    const pm = new PropsManager<P>();
+    const pm = new PropsKernel<P>();
     pm.define(specs);
 
     const meta = pm.applyRaw({ disabled: undefined, count: 1 });
@@ -36,7 +36,7 @@ describe("props: meta semantics for empty:accept (v0)", () => {
   });
 
   it("provided non-empty invalid value => invalidKeys + fallback => resolved null (no defaults)", () => {
-    const pm = new PropsManager<P>();
+    const pm = new PropsKernel<P>();
     pm.define(specs);
 
     const meta = pm.applyRaw({ disabled: "x", count: 1 });
@@ -55,7 +55,7 @@ describe("props: meta semantics for empty:accept (v0)", () => {
 
   it('empty:"error" => provided empty MUST throw when no non-empty fallback exists', () => {
     type P2 = { name: string };
-    const pm = new PropsManager<P2>();
+    const pm = new PropsKernel<P2>();
     const specs2: PropsSpecMap<P2> = {
       name: { kind: "string", empty: "error" },
     };
@@ -69,7 +69,7 @@ describe("props: meta semantics for empty:accept (v0)", () => {
 
   it("missing with empty:error throws if no non-empty fallback exists", () => {
     type P3 = { count: number };
-    const pm = new PropsManager<P3>();
+    const pm = new PropsKernel<P3>();
     pm.define({
       count: { kind: "number", empty: "error" },
     } satisfies PropsSpecMap<P3>);

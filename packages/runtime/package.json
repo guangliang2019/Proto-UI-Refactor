@@ -5,11 +5,11 @@
   "type": "module",
   "dependencies": {
     "@proto-ui/core": "workspace:*",
-    "@proto-ui/props": "workspace:*",
     "@proto-ui/rule": "workspace:*",
     "@proto-ui/types": "workspace:*",
     "@proto-ui/module-base": "workspace:*",
-    "@proto-ui/module-feedback": "workspace:*"
+    "@proto-ui/module-feedback": "workspace:*",
+    "@proto-ui/module-props": "workspace:*"
   },
   "exports": {
     ".": {

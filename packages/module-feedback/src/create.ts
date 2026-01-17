@@ -16,12 +16,7 @@ export function createFeedbackModule(
   init: ModuleInit,
   caps: CapsVaultView<FeedbackCaps>
 ): FeedbackModule {
-  return createModule<
-    "feedback",
-    FeedbackCaps,
-    FeedbackFacade,
-    FeedbackInternal
-  >({
+  return createModule<"feedback", "instance", FeedbackCaps, FeedbackFacade>({
     name: "feedback",
     scope: "instance",
     init,
@@ -120,7 +115,7 @@ export function createFeedbackModule(
             exportMerged: () => impl.exportMerged(),
           },
         },
-        internal: {
+        hooks: {
           onProtoPhase: (p) => impl.onProtoPhase(p),
           flushIfPossible: () => impl.flushIfPossible(),
           afterRenderCommit: () => impl.afterRenderCommit(),

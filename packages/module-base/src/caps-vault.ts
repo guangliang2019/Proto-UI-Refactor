@@ -1,3 +1,4 @@
+// packages/module-base/src/caps-vault.ts
 import type { Unsubscribe } from "./types";
 import { capUnavailable } from "@proto-ui/core";
 

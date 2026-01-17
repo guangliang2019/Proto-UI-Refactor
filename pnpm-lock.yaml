@@ -35,6 +35,13 @@ importers:
       '@proto-ui/types':
         specifier: workspace:*
         version: link:../types
+    devDependencies:
+      '@proto-ui/module-feedback':
+        specifier: workspace:*
+        version: link:../module-feedback
+      '@proto-ui/module-props':
+        specifier: workspace:*
+        version: link:../module-props
 
   packages/core:
     dependencies:
@@ -56,6 +63,18 @@ importers:
       '@proto-ui/module-base':
         specifier: workspace:*
         version: link:../module-base
+
+  packages/module-props:
+    dependencies:
+      '@proto-ui/core':
+        specifier: workspace:*
+        version: link:../core
+      '@proto-ui/module-base':
+        specifier: workspace:*
+        version: link:../module-base
+      '@proto-ui/types':
+        specifier: workspace:*
+        version: link:../types
 
   packages/props:
     dependencies:
@@ -86,6 +105,9 @@ importers:
       '@proto-ui/module-feedback':
         specifier: workspace:*
         version: link:../module-feedback
+      '@proto-ui/module-props':
+        specifier: workspace:*
+        version: link:../module-props
       '@proto-ui/props':
         specifier: workspace:*
         version: link:../props
