@@ -6,7 +6,8 @@
   "dependencies": {
     "@proto-ui/core": "workspace:*",
     "@proto-ui/runtime": "workspace:*",
-    "@proto-ui/types": "workspace:*"
+    "@proto-ui/types": "workspace:*",
+    "@proto-ui/adapter-base": "workspace:*"
   },
   "devDependencies": {
     "@proto-ui/module-feedback": "workspace:*",

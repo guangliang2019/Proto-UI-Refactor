@@ -138,3 +138,42 @@ describe("runtime contract: lifecycle-with-host (v0)", () => {
     expect(calls.includes("unmounted")).toBe(true);
   });
 });
+
+describe("runtime contract: lifecycle-with-host (v0)", () => {
+  it("mounted scheduled task must not run after unmount (no-op / gated)", () => {
+    const proto = {
+      name: "test-mounted-after-unmount",
+      setup(def: any) {
+        def.lifecycle.onMounted(() => {
+          // If this runs after unmount, it is a bug (or should be gated).
+          throw new Error("mounted callback should not run after unmount");
+        });
+        def.lifecycle.onUnmounted(() => {});
+        return (r: any) => [r.r.slot()];
+      },
+    };
+
+    let scheduled: (() => void) | null = null;
+
+    const host: RuntimeHost<any> = {
+      prototypeName: proto.name,
+      getRawProps: () => ({}),
+      commit: () => {},
+      schedule: (task) => {
+        scheduled = task;
+      },
+      // 如果你 RuntimeHost 现在还有 onRuntimeReady/onUnmountBegin，可不写（可选字段）
+    };
+
+    const res = executeWithHost(proto as any, host as any);
+
+    // Ensure mounted callback has been scheduled
+    expect(scheduled).toBeTypeOf("function");
+
+    // Unmount first
+    expect(() => res.invokeUnmounted()).not.toThrow();
+
+    // Then execute scheduled mounted task => must not throw, must be effectively ignored/gated
+    expect(() => scheduled?.()).not.toThrow();
+  });
+});

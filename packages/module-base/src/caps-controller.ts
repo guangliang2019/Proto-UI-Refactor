@@ -1,3 +1,4 @@
+// packages/module-base/src/caps-controller.ts
 import type { CapsVault } from "./caps-vault";
 
 export interface CapsController<Caps extends object> {

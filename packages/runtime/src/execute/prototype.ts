@@ -12,7 +12,6 @@ export function executePrototype<P extends PropsBaseType>(
   opt: ExecuteOptions = {}
 ): ExecuteResult<P> {
   const engine = createEngine(proto, {
-    initialRawProps: { ...(opt.props ?? {}) },
     allowRunUpdate: false,
   });
 

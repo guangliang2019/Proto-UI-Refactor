@@ -24,8 +24,26 @@ importers:
         specifier: ^2.0.0
         version: 2.1.9(happy-dom@15.11.7)
 
+  packages/adapter-base:
+    dependencies:
+      '@proto-ui/core':
+        specifier: workspace:*
+        version: link:../core
+      '@proto-ui/module-base':
+        specifier: workspace:*
+        version: link:../module-base
+      '@proto-ui/runtime':
+        specifier: workspace:*
+        version: link:../runtime
+      '@proto-ui/types':
+        specifier: workspace:*
+        version: link:../types
+
   packages/adapter-web-component:
     dependencies:
+      '@proto-ui/adapter-base':
+        specifier: workspace:*
+        version: link:../adapter-base
       '@proto-ui/core':
         specifier: workspace:*
         version: link:../core
@@ -44,7 +62,7 @@ importers:
         version: link:../module-props
 
   packages/core:
-    dependencies:
+    devDependencies:
       '@proto-ui/types':
         specifier: workspace:*
         version: link:../types
@@ -76,23 +94,11 @@ importers:
         specifier: workspace:*
         version: link:../types
 
-  packages/props:
-    dependencies:
-      '@proto-ui/core':
-        specifier: workspace:*
-        version: link:../core
-      '@proto-ui/types':
-        specifier: workspace:*
-        version: link:../types
-
   packages/rule:
     dependencies:
       '@proto-ui/core':
         specifier: workspace:*
         version: link:../core
-      '@proto-ui/props':
-        specifier: workspace:*
-        version: link:../props
 
   packages/runtime:
     dependencies:
@@ -108,9 +114,6 @@ importers:
       '@proto-ui/module-props':
         specifier: workspace:*
         version: link:../module-props
-      '@proto-ui/props':
-        specifier: workspace:*
-        version: link:../props
       '@proto-ui/rule':
         specifier: workspace:*
         version: link:../rule

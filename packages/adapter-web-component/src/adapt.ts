@@ -1,16 +1,20 @@
 // packages/adapter-web-component/src/adapt.ts
-
-import type { Prototype } from "@proto-ui/core";
-import type { EffectsPort, StyleHandle } from "@proto-ui/core";
+import type { Prototype, EffectsPort, StyleHandle } from "@proto-ui/core";
 import { executeWithHost, type RuntimeHost } from "@proto-ui/runtime";
+import { PropsBaseType } from "@proto-ui/types";
+
+import type { RawPropsSource } from "@proto-ui/module-props";
+
+import {
+  createHostWiring,
+  createEventGate,
+  createTeardown,
+} from "@proto-ui/adapter-base";
+
 import { commitChildren } from "./commit";
 import { bindController, getElementProps, unbindController } from "./props";
 import { SlotProjector } from "./slot-projector";
 import { createOwnedTwTokenApplier } from "./feedback-style";
-import { PropsBaseType } from "@proto-ui/types";
-
-import type { FeedbackCaps } from "@proto-ui/module-feedback";
-import type { PropsCaps, RawPropsSource } from "@proto-ui/module-props";
 
 function assertKebabCase(tag: string) {
   if (!tag.includes("-") || tag.toLowerCase() !== tag) {
@@ -39,8 +43,12 @@ export function AdaptToWebComponent<Props extends PropsBaseType>(
   class ProtoElement extends HTMLElement {
     private _mountedOnce = false;
     private _invokeUnmounted: (() => void) | null = null;
+
     private _root: Element | ShadowRoot;
     private _slotProjector: SlotProjector | null = null;
+
+    private _applier: ReturnType<typeof createOwnedTwTokenApplier> | null =
+      null;
 
     constructor() {
       super();
@@ -53,17 +61,27 @@ export function AdaptToWebComponent<Props extends PropsBaseType>(
       if (this._mountedOnce) return;
       this._mountedOnce = true;
 
+      const teardown = createTeardown();
+      const eventGate = createEventGate();
+
       const thisEl = this;
       const thisRoot = this._root;
+
+      // Create applier/effectsPort BEFORE executeWithHost,
+      // because we must inject them in host.onRuntimeReady (CP1).
+      const applier = createOwnedTwTokenApplier(thisEl);
+      this._applier = applier;
+
+      const effectsPort: EffectsPort = createWebEffectsPort(applier);
 
       const rawPropsSource: RawPropsSource<Props> = {
         debugName: `${proto.name}#raw-props`,
         get() {
-          // 你的现有策略保持不变：优先 attrs，其次 opt.getProps
+          // keep existing strategy: attrs first, then opt.getProps
           return (getElementProps(thisEl) ?? getProps(thisEl) ?? {}) as any;
         },
         subscribe(cb) {
-          // 最小实现：监听 attributes 变化
+          // minimal: observe attributes changes
           const mo = new MutationObserver((records) => {
             for (const r of records) {
               if (r.type === "attributes") {
@@ -74,10 +92,18 @@ export function AdaptToWebComponent<Props extends PropsBaseType>(
           });
 
           mo.observe(thisEl, { attributes: true });
-
           return () => mo.disconnect();
         },
       };
+
+      // --- adapter-base wiring (CP1)
+      const wiring = createHostWiring({
+        prototypeName: proto.name,
+        modules: {
+          props: () => ({ rawPropsSource }),
+          feedback: () => ({ effects: effectsPort }),
+        },
+      });
 
       const host: RuntimeHost<Props> = {
         prototypeName: proto.name,
@@ -86,17 +112,39 @@ export function AdaptToWebComponent<Props extends PropsBaseType>(
           return rawPropsSource.get();
         },
 
+        // CP1: runtime ready hook (called before created + before first commit)
+        onRuntimeReady: (capsHub) => {
+          wiring.onRuntimeReady(capsHub);
+        },
+
+        // CP8: unmount begins hook (before unmounted callbacks)
+        // IMPORTANT: do NOT reset caps here.
+        // This hook is for "make things ineffective immediately", e.g. disconnect observers.
+        onUnmountBegin: () => {
+          eventGate.disable();
+
+          // If slot projector has an active MO, disconnect it early.
+          this._slotProjector?.disconnect();
+          this._slotProjector = null;
+        },
+
         commit: (children) => {
           if (shadow) {
             commitChildren(thisRoot as any, children, { mode: "shadow" });
             this._slotProjector?.disconnect();
             this._slotProjector = null;
+
+            // WC profile: CP4 ~= commit done
+            eventGate.enable();
             return;
           }
 
           if (isSlotOnly(children)) {
             this._slotProjector?.disconnect();
             this._slotProjector = null;
+
+            // still a commit boundary; make events effective afterwards
+            eventGate.enable();
             return;
           }
 
@@ -125,35 +173,43 @@ export function AdaptToWebComponent<Props extends PropsBaseType>(
             projector.disconnect();
             this._slotProjector = null;
           }
+
+          // WC profile: CP4 ~= commit done
+          eventGate.enable();
         },
 
         schedule,
       };
 
       const res = executeWithHost(proto, host);
-      const { controller, invokeUnmounted, caps } = res;
-      // props module wiring: provide rawPropsSource via caps controller
-      const propsCaps = caps.getCapsController<PropsCaps<Props>>("props");
-      propsCaps?.attach({ rawPropsSource });
+      const { controller, invokeUnmounted } = res;
 
-      // feedback module wiring: provide EffectsPort via caps controller
-      const applier = createOwnedTwTokenApplier(thisEl);
-      const effectsPort: EffectsPort = createWebEffectsPort(applier);
-
-      const feedbackCaps = caps.getCapsController<FeedbackCaps>("feedback");
-      feedbackCaps?.attach({ effects: effectsPort });
-
+      // expose update for convenience (existing behavior)
       (this as any).update = () => controller.update();
 
       bindController(this, controller);
 
-      this._invokeUnmounted = () => {
-        propsCaps?.reset();
-        feedbackCaps?.reset();
-        applier.clear();
-        unbindController(this);
-        invokeUnmounted();
-      };
+      // Teardown must keep caps alive until unmounted callbacks finish.
+      this._invokeUnmounted = () =>
+        teardown.run(() => {
+          // 1) let runtime run CP8/CP9/CP10 (unmounted callbacks run BEFORE disposal)
+          invokeUnmounted();
+
+          // 2) adapter-base cleanup (best-effort, after runtime disposal)
+          // NOTE: if your createHostWiring.afterUnmount() calls controller.reset(),
+          // it should swallow errors because moduleHub may already be disposed.
+          wiring.afterUnmount();
+          eventGate.dispose();
+
+          // 3) then adapter local cleanup
+          this._slotProjector?.disconnect();
+          this._slotProjector = null;
+
+          this._applier?.clear();
+          this._applier = null;
+
+          unbindController(this);
+        });
     }
 
     disconnectedCallback() {
@@ -179,7 +235,9 @@ function isSlotOnly(children: any): boolean {
       ? children[0]
       : null
     : children;
+
   if (!one || typeof one !== "object") return false;
+
   const t = (one as any).type;
   return t && typeof t === "object" && t.kind === "slot";
 }

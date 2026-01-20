@@ -1,3 +1,4 @@
+// packages/runtime/src/execute/types.ts
 import { TemplateChildren } from "@proto-ui/core";
 import { PropsBaseType } from "@proto-ui/types";
 import { LifecycleRegistry } from "../handles/def";
