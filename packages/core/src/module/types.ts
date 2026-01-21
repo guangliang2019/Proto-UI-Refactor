@@ -12,16 +12,11 @@ export interface ModuleFacade {
   // intentionally empty; modules define their own facade types
 }
 
-export interface ModuleInternal {
-  // runtime orchestration SPI
-  onProtoPhase?(phase: ProtoPhase): void;
-  // optional: called by runtime after structural commit
-  afterRenderCommit?(): void;
+export interface ModulePort {
+  // intentionally empty; modules define their own port types
 }
 
-export interface ModuleInstance<
-  F extends ModuleFacade,
-> {
+export interface ModuleInstance<F extends ModuleFacade> {
   readonly name: string;
   readonly scope: ModuleScope;
   readonly facade: F;

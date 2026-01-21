@@ -6,7 +6,7 @@ import type {
   RawWatchCallback,
   RunHandle,
 } from "@proto-ui/core";
-import type { ModuleInternal, ModuleInstance } from "@proto-ui/core";
+import type { ModuleInstance } from "@proto-ui/core";
 import type { PropsBaseType, PropsSpecMap } from "@proto-ui/types";
 import { PropsKernelDiag } from "./kernel";
 

@@ -2,7 +2,7 @@ import type { StyleHandle } from "@proto-ui/core";
 import type { EffectsPort } from "@proto-ui/core";
 import type {
   ModuleFacade,
-  ModuleInternal,
+  ModuleHooks,
   ModuleInit,
   ModuleInstance,
   ModuleScope,
@@ -24,7 +24,7 @@ export interface FeedbackFacade extends ModuleFacade {
   };
 }
 
-export interface FeedbackInternal extends ModuleInternal {
+export interface FeedbackInternal extends ModuleHooks {
   onProtoPhase(phase: ProtoPhase): void;
 
   /** called by runtime or host to try applying effects */

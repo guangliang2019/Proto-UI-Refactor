@@ -1,5 +1,10 @@
 // packages/core/src/handles.ts
-import { PropsBaseType, PropsSpecMap } from "@proto-ui/types";
+import {
+  EventListenerToken,
+  EventTypeV0,
+  PropsBaseType,
+  PropsSpecMap,
+} from "@proto-ui/types";
 import {
   UnUse,
   StyleHandle,
@@ -65,6 +70,30 @@ export interface DefHandle<Props extends PropsBaseType> {
   };
 
   rule: (spec: any) => void;
+
+  event: {
+    on(
+      type: EventTypeV0,
+      cb: ProtoEventCallback<Props>,
+      options?: EventListenerOptions
+    ): EventListenerToken;
+    off(
+      type: EventTypeV0,
+      cb: ProtoEventCallback<Props>,
+      options?: EventListenerOptions
+    ): void;
+    onGlobal(
+      type: EventTypeV0,
+      cb: ProtoEventCallback<Props>,
+      options?: EventListenerOptions
+    ): EventListenerToken;
+    offGlobal(
+      type: EventTypeV0,
+      cb: ProtoEventCallback<Props>,
+      options?: EventListenerOptions
+    ): void;
+    offToken(token: EventListenerToken): void;
+  };
 }
 
 // render-time 句柄：构造模板 + 只读读取视图（read）
@@ -123,4 +152,9 @@ export type RawWatchCallback<P extends PropsBaseType> = (
   nextRaw: Readonly<P & PropsBaseType>,
   prevRaw: Readonly<P & PropsBaseType>,
   info: WatchInfo<P & PropsBaseType>
+) => void;
+
+export type ProtoEventCallback<P extends PropsBaseType> = (
+  run: RunHandle<P>,
+  ev: any
 ) => void;

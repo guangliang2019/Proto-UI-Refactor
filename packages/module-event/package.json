@@ -1,16 +1,12 @@
 {
-  "name": "@proto-ui/runtime",
+  "name": "@proto-ui/module-event",
   "version": "0.0.0",
   "private": true,
   "type": "module",
   "dependencies": {
     "@proto-ui/core": "workspace:*",
-    "@proto-ui/rule": "workspace:*",
     "@proto-ui/types": "workspace:*",
-    "@proto-ui/module-base": "workspace:*",
-    "@proto-ui/module-feedback": "workspace:*",
-    "@proto-ui/module-props": "workspace:*",
-    "@proto-ui/module-event": "workspace:*"
+    "@proto-ui/module-base": "workspace:*"
   },
   "exports": {
     ".": {

@@ -6,6 +6,7 @@ import { ExecuteWithHostResult, RuntimeController } from "./types";
 import { createEngine } from "./engine";
 import type { PropsFacade, PropsPort } from "@proto-ui/module-props";
 import { createTimeline } from "./timeline";
+import { EventPort } from "@proto-ui/module-event";
 
 export function executeWithHost<P extends PropsBaseType>(
   proto: Prototype<P>,
@@ -55,6 +56,9 @@ export function executeWithHost<P extends PropsBaseType>(
     // WC may map CP4 ~= CP3. Framework adapters may delay CP4 in the future.
     // This mark is the canonical "events may become effective from now on" boundary.
     timeline.mark("instance:reachable");
+    // bind events at/after CP4
+    const eventPort = moduleHub.getPort<EventPort<P>>("event");
+    eventPort?.bind?.(run);
 
     // afterRenderCommit hook for modules
     moduleHub.afterRenderCommit();
@@ -129,6 +133,9 @@ export function executeWithHost<P extends PropsBaseType>(
 
     timeline.mark("unmount:begin");
     host.onUnmountBegin?.();
+
+    const eventPort = moduleHub.getPort<EventPort<P>>("event");
+    eventPort?.unbind?.();
 
     engine.setPhase("callback");
     for (const cb of lifecycle.unmounted) cb(run);

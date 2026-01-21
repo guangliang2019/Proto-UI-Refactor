@@ -7,6 +7,7 @@ import { RuleRegistry } from "../rule";
 import { ModuleHub } from "../module-hub/types";
 import { FeedbackFacade } from "@proto-ui/module-feedback";
 import { PropsFacade } from "@proto-ui/module-props";
+import { EventFacade } from "@proto-ui/module-event";
 
 export type LifecycleKind = "created" | "mounted" | "updated" | "unmounted";
 
@@ -37,6 +38,7 @@ export const createDefHandle = <P extends PropsBaseType>(
   const facades = modules.getFacades();
   const feedback = facades["feedback"] as FeedbackFacade;
   const props = facades["props"] as PropsFacade<P>;
+  const event = facades["event"] as EventFacade<P>;
   const ensureSetup = (op: string) => {
     const phase = st.getPhase();
     if (phase !== "setup") {
@@ -112,6 +114,14 @@ export const createDefHandle = <P extends PropsBaseType>(
     rule: (spec: RuleSpec<any>) => {
       ensureSetup("def.rule");
       rules.define(spec as any);
+    },
+
+    event: {
+      on: (type, cb, options) => event.on(type, cb, options),
+      off: (type, cb, options) => event.off(type, cb, options),
+      onGlobal: (type, cb, options) => event.onGlobal(type, cb, options),
+      offGlobal: (type, cb, options) => event.offGlobal(type, cb, options),
+      offToken: (token) => event.offToken(token),
     },
   };
 };

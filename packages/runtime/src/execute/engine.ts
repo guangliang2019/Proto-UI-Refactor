@@ -28,6 +28,7 @@ import {
 // NOTE: adjust import to match your actual timeline location/types.
 // The engine does NOT create timeline; it only consumes an injected instance.
 import { RuntimeTimeline } from "./timeline";
+import { createEventModule } from "@proto-ui/module-event";
 
 export type Engine<P extends PropsBaseType> = {
   // state
@@ -76,6 +77,7 @@ export function createEngine<P extends PropsBaseType>(
   const moduleHub = new RuntimeModuleHub({ prototypeName: proto.name }, [
     { name: "feedback", create: createFeedbackModule },
     { name: "props", create: createPropsModule },
+    { name: "event", create: createEventModule },
   ]);
 
   const def = createDefHandle<P>(st, lifecycle, rules, moduleHub);

@@ -1,7 +1,7 @@
 // packages/module-base/src/create-module.ts
 import type {
   ModuleFacade,
-  ModuleInternal,
+  ModuleHooks,
   ModuleInstance,
   ModuleInit,
   ModuleScope,

@@ -15,6 +15,7 @@ import { commitChildren } from "./commit";
 import { bindController, getElementProps, unbindController } from "./props";
 import { SlotProjector } from "./slot-projector";
 import { createOwnedTwTokenApplier } from "./feedback-style";
+import { createWebProtoEventRouter } from "./events";
 
 function assertKebabCase(tag: string) {
   if (!tag.includes("-") || tag.toLowerCase() !== tag) {
@@ -67,6 +68,12 @@ export function AdaptToWebComponent<Props extends PropsBaseType>(
       const thisEl = this;
       const thisRoot = this._root;
 
+      const router = createWebProtoEventRouter({
+        rootEl: thisEl,
+        globalEl: window,
+        isEnabled: () => eventGate.isEnabled?.() ?? true, // 看你 eventGate API，没就自己存个 boolean
+      });
+
       // Create applier/effectsPort BEFORE executeWithHost,
       // because we must inject them in host.onRuntimeReady (CP1).
       const applier = createOwnedTwTokenApplier(thisEl);
@@ -102,6 +109,10 @@ export function AdaptToWebComponent<Props extends PropsBaseType>(
         modules: {
           props: () => ({ rawPropsSource }),
           feedback: () => ({ effects: effectsPort }),
+          event: () => ({
+            getRootTarget: () => router.rootTarget,
+            getGlobalTarget: () => router.globalTarget,
+          }),
         },
       });
 
@@ -200,6 +211,7 @@ export function AdaptToWebComponent<Props extends PropsBaseType>(
           // it should swallow errors because moduleHub may already be disposed.
           wiring.afterUnmount();
           eventGate.dispose();
+          router.dispose();
 
           // 3) then adapter local cleanup
           this._slotProjector?.disconnect();
