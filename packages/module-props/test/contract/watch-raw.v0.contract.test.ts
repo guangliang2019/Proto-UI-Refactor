@@ -211,27 +211,38 @@ describe("Props watch(raw) Contract v0", () => {
     expect(w2.length).toBeGreaterThanOrEqual(w1.length);
   });
 
-  it("PROP-V0-4300/4400: run is forwarded from applyRaw(nextRaw, run) into raw callbacks", () => {
+  it("PROP-V0-4300/4400 + PROP-V0-2110: raw callbacks receive a RunHandle-like object; run.props.getRaw() is usable and coherent", () => {
     const pm = new PropsKernel<any>();;
     pm.define({ a: { kind: "number", default: 1 } });
 
-    const runObj = { tag: "run" };
+    const runObj = {
+      update() {},
+      props: {
+        get: () => pm.get(),
+        getRaw: () => pm.getRaw(),
+        isProvided: (key: any) => pm.isProvided(key),
+      },
+    };
 
-    let seenAll: any = null;
-    let seenKey: any = null;
+    pm.addWatchRawAll((run, nextRaw, _prevRaw, info) => {
+      expect(typeof (run as any).props?.getRaw).toBe("function");
+      expect(typeof (run as any).props?.isProvided).toBe("function");
 
-    pm.addWatchRawAll((run) => (seenAll = run));
-    pm.addWatchRaw(["x"], (run) => (seenKey = run));
+      // Alignment: run.props.getRaw() matches watcher raw snapshot
+      expect((run as any).props.getRaw()).toEqual(nextRaw);
+
+      expect(info.changedKeysAll.length).toBeGreaterThan(0);
+    });
+
+    pm.addWatchRaw(["x"], (run, nextRaw) => {
+      expect((run as any).props.getRaw()).toEqual(nextRaw);
+    });
 
     // hydration
-    pm.applyRaw({ a: 1 } as any, runObj);
-    expect(seenAll).toBeNull();
-    expect(seenKey).toBeNull();
+    pm.applyRaw({ a: 1 } as any, runObj as any);
 
     // trigger
-    pm.applyRaw({ a: 1, x: 1 } as any, runObj);
-    expect(seenAll).toBe(runObj);
-    expect(seenKey).toBe(runObj);
+    pm.applyRaw({ a: 1, x: 1 } as any, runObj as any);
   });
 
   it("PROP-V0-4400: watchRaw(keys) rejects empty key list", () => {

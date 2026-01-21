@@ -4,8 +4,6 @@ import { PropsBaseType } from "@proto-ui/types";
 import { LifecycleRegistry } from "../handles/def";
 import { ModuleHub } from "../module-hub";
 
-type Phase = "setup" | "render" | "callback" | "unknown";
-
 export interface ExecuteOptions {
   props?: any;
 }
@@ -17,7 +15,6 @@ export interface ExecuteResult<P extends PropsBaseType> {
 }
 
 export interface RuntimeController {
-
   applyRawProps(nextRaw: Record<string, any>): void;
 
   update(): void; // render + commit (host only)

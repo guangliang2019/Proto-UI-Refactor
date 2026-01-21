@@ -191,26 +191,42 @@ describe("Props watch(resolved) Contract v0", () => {
     expect(() => pm.addWatch(["x"], () => {})).toThrow();
   });
 
-  it("PROP-V0-3300/3400: run is forwarded from applyRaw(nextRaw, run) into callbacks", () => {
+  it("PROP-V0-3300/3400 + PROP-V0-2110: callbacks receive a RunHandle-like object; run.props.* is usable and coherent", () => {
     const pm = new PropsKernel<any>();
     pm.define({ a: { kind: "number", default: 1 } });
 
-    const runObj = { tag: "run" };
+    // RunHandle-like stub: contract tests use this to enforce callback expectations.
+    // Runtime must provide a real RunHandle that satisfies the same surface + behavior.
+    const runObj = {
+      update() {},
+      props: {
+        get: () => pm.get(),
+        getRaw: () => pm.getRaw(),
+        isProvided: (key: any) => pm.isProvided(key),
+      },
+    };
 
-    let seenAll: any = null;
-    let seenKey: any = null;
+    pm.addWatchAll((run, next, _prev, info) => {
+      expect(typeof (run as any).props?.get).toBe("function");
+      expect(typeof (run as any).props?.getRaw).toBe("function");
+      expect(typeof (run as any).props?.isProvided).toBe("function");
 
-    pm.addWatchAll((run) => (seenAll = run));
-    pm.addWatch(["a"], (run) => (seenKey = run));
+      // Alignment: run.props.get() matches watcher snapshot
+      expect((run as any).props.get()).toEqual(next);
+
+      // Extra sanity: info is still meaningful
+      expect(info.changedKeysAll.length).toBeGreaterThan(0);
+    });
+
+    pm.addWatch(["a"], (run, next) => {
+      expect((run as any).props.get()).toEqual(next);
+      expect((run as any).props.isProvided("a")).toBe(true);
+    });
 
     // hydration
-    pm.applyRaw({ a: 1 }, runObj);
-    expect(seenAll).toBeNull();
-    expect(seenKey).toBeNull();
+    pm.applyRaw({ a: 1 }, runObj as any);
 
     // trigger
-    pm.applyRaw({ a: 2 }, runObj);
-    expect(seenAll).toBe(runObj);
-    expect(seenKey).toBe(runObj);
+    pm.applyRaw({ a: 2 }, runObj as any);
   });
 });

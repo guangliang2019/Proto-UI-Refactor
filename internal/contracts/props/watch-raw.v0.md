@@ -89,6 +89,9 @@ Then:
 `cb(run, nextRaw, prevRaw, info)` where:
 
 - `run` is the runtime RunHandle passed to `applyRaw(nextRaw, run)`
+
+  - It MUST satisfy **PROP-V0-2110 (Handle Wiring)**: `run.props.get/getRaw/isProvided` must exist and behave consistently.
+
 - `nextRaw` is the raw snapshot after applying new raw props
 - `prevRaw` is the raw snapshot before applying new raw props
 - `info.changedKeysAll` is `changedKeysAll`
@@ -124,6 +127,10 @@ Then:
 
 `cb(run, nextRaw, prevRaw, info)` with:
 
+- `run` is the runtime RunHandle passed to `applyRaw(nextRaw, run)`
+
+  - It MUST satisfy **PROP-V0-2110 (Handle Wiring)**: `run.props.get/getRaw/isProvided` must exist and behave consistently.
+
 - `info.changedKeysAll` computed from unionKeys
 - `info.changedKeysMatched` computed from provided `keys`
 
@@ -138,8 +145,11 @@ Raw watching is an escape hatch and should be avoided in official prototypes.
 When a raw watcher is evaluated in a watcher-firing `applyRaw(...)` call:
 
 - `watchRawAll` may record a warning diagnostic:
+
   - `[Props] watchRawAll() is an escape hatch; avoid in official prototypes.`
+
 - `watchRaw(keys)` may record a warning diagnostic:
+
   - `[Props] watchRaw() is an escape hatch; avoid in official prototypes.`
 
 This warning emission is controlled by an internal `devWarn` flag.

@@ -73,6 +73,7 @@ Subsequent `applyRaw(...)` calls may trigger watchers.
 `cb(run, next, prev, info)` where:
 
 - `run` is the runtime RunHandle passed to `applyRaw(nextRaw, run)`
+  - It MUST satisfy **PROP-V0-2110 (Handle Wiring)**: `run.props.get/getRaw/isProvided` must exist and behave consistently.
 - `next` is the resolved snapshot after applying the new raw props
 - `prev` is the resolved snapshot before applying the new raw props
 - `info.changedKeysAll` is the list of all changed declared keys
