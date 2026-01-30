@@ -1,126 +1,140 @@
-# internal/contracts/lifecycle/component-lifecycle.v0.md
+# Component Lifecycle Contract (v0)
 
-This document defines the **lifecycle semantics guaranteed to Component Authors**.
+This document defines the **lifecycle guarantees exposed to Component Authors**
+(Prototype Authors) in Proto UI.
 
-It describes what prototype code may rely on when using
-`def.lifecycle.*` callbacks and `run` handles.
+It specifies:
 
-> Scope: Prototype authors.
-> Non-goals: adapter implementation details, scheduling primitives, DOM availability.
+- callback ordering
+- availability boundaries
+- execution domain guarantees
+- disposal semantics
+
+This document is **normative**.
+
+---
+
+## Execution Domain Mapping (v0)
+
+Proto UI exposes a coarse execution guard domain via `SystemCaps` (`__sys.domain()`).
+
+Guard domains are **not phases**; they are **permission domains** used by modules
+to enforce correct API usage.
+
+### Domains
+
+- `"setup"`
+  - Active **only while** executing inside `proto.setup(def)`
+- `"runtime"`
+  - Active for all execution after `setup` returns:
+    - `created`
+    - render
+    - `mounted`
+    - `updated`
+    - `unmounted`
+    - host-driven callbacks
+
+### Contract (v0)
+
+1. During `proto.setup(def)`, `__sys.domain()` MUST be `"setup"`.
+2. Immediately after `setup(def)` returns (before any lifecycle callbacks or render),
+   `__sys.domain()` MUST switch to `"runtime"`.
+3. During all lifecycle callbacks (`created`, `mounted`, `updated`, `unmounted`)
+   and render execution, `__sys.domain()` MUST be `"runtime"`.
+4. During the `unmounted` callback:
+   - `__sys.domain()` MUST be `"runtime"`
+   - `__sys.isDisposed()` MUST be `false`
+5. After the `unmounted` callback returns:
+   - `__sys.isDisposed()` MUST become `true`
+   - All module handles guarded by `__sys` MUST become unusable and throw.
 
 ---
 
 ## Lifecycle Callbacks
 
-### created
+Proto UI exposes the following lifecycle callbacks to Component Authors:
 
-- Runs **once per instance**.
-- Runs **after** `setup(def)` completes.
-- Runs **before** the first host commit.
+- `created`
+- `mounted`
+- `updated`
+- `unmounted`
 
-**Guaranteed**:
-
-- `run` is available.
-- props, context, and state APIs are usable (as provided by the host).
-- subscriptions and side-effect intents may be registered.
-
-**Not guaranteed**:
-
-- Any rendered view nodes exist.
-- Any events can fire.
-- Any focus / measurement APIs are safe.
-
----
-
-### mounted
-
-- Runs **once per instance**, **after the first commit**.
-- Scheduled by the host via `host.schedule`.
-- Represents the point where the host considers the instance _connected_.
-
-**Guaranteed**:
-
-- The initial commit has completed.
-- Event systems may become effective.
-- Side effects that require a committed view are permitted.
-
-**Not guaranteed**:
-
-- Specific scheduling semantics (sync / microtask / macrotask / framework tick).
-- That mounted runs immediately after commit.
-
-Prototype code must not assume a specific scheduling primitive.
-
----
-
-### update intent (`run.update()`)
-
-- Expresses **intent to update**, not a synchronous commit request.
-
-**Contract**:
-
-- The host may batch, defer, or coalesce update intents.
-- Calling `update()` does **not** guarantee immediate view changes.
-
----
-
-### updated
-
-- Runs **after a commit that corresponds to an update cycle**.
-- May run fewer times than update intents if commits are coalesced.
-
-**Guaranteed**:
-
-- A host commit corresponding to an update has completed.
-
-**Not guaranteed**:
-
-- One-to-one mapping between update intents and updated callbacks.
-
----
-
-### unmounted
-
-- Runs when the host determines the instance is disconnected.
-- Used to clean up side effects established during the instance lifetime.
-
-**Guaranteed**:
-
-- `run` is still available during `unmounted`.
-- Modules, ports, and facades are still accessible.
-
-**After unmounted returns**:
-
-- The instance is considered fully disposed.
-- No further access to `run`, modules, or caps is permitted.
+These callbacks are registered during setup and executed by the runtime
+according to the canonical lifecycle timeline.
 
 ---
 
 ## Ordering Guarantees
 
-The following ordering is guaranteed:
+### Setup → Created → First Render → Mounted
 
-1. `setup` → `created`
-2. `created` → first `commit`
-3. first `commit` → `mounted`
-4. update `commit` → `updated`
-5. `unmounted` runs **before** final disposal
+The runtime MUST guarantee the following order:
+
+1. `proto.setup(def)` is executed
+2. `created` callbacks are executed
+3. Initial render is executed
+4. First commit is performed
+5. `mounted` callbacks are executed
+
+Notes:
+
+- `created` always runs **before** the first render.
+- `mounted` always runs **after** the first commit.
 
 ---
 
-## Side Effect Guidance (v0)
+## Update Cycle
 
-- Establish effects in `mounted` or `updated`.
-- Dispose effects in `unmounted`.
-- Effects must be written to tolerate delayed mounting and batched updates.
+When an update is triggered (e.g. via `run.update()`):
+
+1. Render is executed
+2. Commit is performed
+3. `updated` callbacks are executed
+
+No lifecycle callback may be reordered across these steps.
 
 ---
 
-## What Component Authors Must Not Assume
+## Unmount & Disposal Semantics
 
-- That DOM nodes exist during `created`.
-- That events are active before `mounted`.
-- That updates commit synchronously.
-- That unmounted callbacks run after disposal (they do not).
+### Unmount Callback
 
-These constraints are invariant across all hosts.
+When a component instance is unmounted, the runtime MUST:
+
+1. Execute `unmounted` callbacks
+2. Only after all `unmounted` callbacks return, dispose the instance
+
+### Availability During `unmounted`
+
+During execution of `unmounted` callbacks:
+
+- All module facades and handles MUST remain usable
+- `__sys.isDisposed()` MUST be `false`
+
+This allows teardown logic to safely access state, events, and other modules.
+
+### After Disposal
+
+After disposal completes:
+
+- `__sys.isDisposed()` MUST be `true`
+- Any access to module facades or handles guarded by `__sys`
+  MUST throw an error
+
+---
+
+## Error Model
+
+Lifecycle violations (ordering, availability, or domain misuse)
+are considered **runtime bugs**.
+
+Implementations MUST fail fast and MUST NOT silently recover.
+
+---
+
+## Versioning
+
+- Version: **v0**
+- v0 guarantees ordering, availability, and domain mapping.
+- Future versions may introduce additional callbacks or checkpoints
+  but MUST NOT violate v0 guarantees.

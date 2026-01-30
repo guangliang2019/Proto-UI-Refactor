@@ -1,17 +1,16 @@
-// packages/module-base/src/create-module.ts
 import type {
   ModuleFacade,
   ModuleHooks,
   ModuleInstance,
   ModuleInit,
   ModuleScope,
-  ModuleHooks,
 } from "@proto-ui/core";
 import type { CapsVaultView } from "./caps-vault";
+import type { WithSystemCaps } from "./system-caps";
 
 export type ModuleFactoryArgs<Caps extends object> = {
   init: ModuleInit;
-  caps: CapsVaultView<Caps>;
+  caps: CapsVaultView<Caps & WithSystemCaps>;
 };
 
 export function createModule<
@@ -24,7 +23,7 @@ export function createModule<
   name: Name;
   scope: Scope;
   init: ModuleInit;
-  caps: CapsVaultView<Caps>;
+  caps: CapsVaultView<Caps & WithSystemCaps>;
   build: (ctx: ModuleFactoryArgs<Caps>) => {
     facade: Facade;
     hooks?: ModuleHooks; // optional, default {}

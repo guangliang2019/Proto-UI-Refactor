@@ -1,5 +1,5 @@
 // packages/core/src/module/caps.ts
-export type Unsubscribe = () => void;
+type Unsubscribe = () => void;
 
 export interface CapsVaultView<Caps extends object> {
   readonly epoch: number;

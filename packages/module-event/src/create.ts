@@ -1,16 +1,16 @@
 // packages/module-event/src/create.ts
-import type { ModuleInit } from "@proto-ui/core";
 import { createModule } from "@proto-ui/module-base";
-import type { CapsVaultView } from "@proto-ui/module-base";
+import type { ModuleFactoryArgs, WithSystemCaps } from "@proto-ui/module-base";
 
 import type { EventCaps, EventFacade, EventModule, EventPort } from "./types";
 import { EventModuleImpl } from "./impl";
 import { PropsBaseType } from "@proto-ui/types";
 
 export function createEventModule<P extends PropsBaseType>(
-  init: ModuleInit,
-  caps: CapsVaultView<EventCaps>
+  ctx: ModuleFactoryArgs<EventCaps & WithSystemCaps>
 ): EventModule<P> {
+  const { init, caps } = ctx;
+
   return createModule<
     "event",
     "instance",

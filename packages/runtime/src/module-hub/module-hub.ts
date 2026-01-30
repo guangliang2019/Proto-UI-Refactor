@@ -1,47 +1,94 @@
 // packages/runtime/src/module-hub/module-hub.ts
-import type { ModuleFacade, ModuleInit, ProtoPhase } from "@proto-ui/core";
+import type { ModuleFacade, ProtoPhase } from "@proto-ui/core";
 import {
   CapsVault,
+  SystemCaps,
   asCapsController,
   type CapsController,
+  type ExecPhase,
 } from "@proto-ui/module-base";
 import type { AnyModule, ModuleHub, ModuleRecord } from "./types";
 
-type ModuleFactory<Caps extends object> = (
-  init: ModuleInit,
-  caps: any
-) => AnyModule;
-// caps: any 是为了不把 runtime 写死在某个 caps view 类型上；你也可以更严格地泛型化。
-
 export class RuntimeModuleHub implements ModuleHub {
-  private records: Array<ModuleRecord<any>> = [];
+  private readonly prototypeName: string;
+  private readonly getPhase: () => ExecPhase;
+
+  private protoPhase: ProtoPhase = "setup";
+  private disposed = false;
+
+  private records: ModuleRecord<any>[] = [];
   private facades: Record<string, ModuleFacade> = {};
-  private phase: ProtoPhase = "setup";
+  private ports: Record<string, any> = {};
 
   constructor(
-    init: ModuleInit,
-    factories: Array<{ name: string; create: ModuleFactory<any> }>
+    init: { prototypeName: string; getPhase: () => ExecPhase },
+    modules: Array<{ name: string; create: any }>
   ) {
-    for (const f of factories) {
+    this.prototypeName = init.prototypeName;
+    this.getPhase = init.getPhase;
+
+    const fail = (msg: string) => {
+      throw new Error(`[Runtime] ${msg}`);
+    };
+
+    const sys: SystemCaps = {
+      execPhase: () => this.getPhase(),
+      domain: () => (this.getPhase() === "setup" ? "setup" : "runtime"),
+      protoPhase: () => this.protoPhase,
+      isDisposed: () => this.disposed,
+
+      ensureNotDisposed: (op) => {
+        if (this.disposed) fail(`${this.prototypeName} is disposed. op=${op}`);
+      },
+
+      ensureExecPhase: (op, expected) => {
+        if (this.disposed) fail(`${this.prototypeName} is disposed. op=${op}`);
+
+        const actual = this.getPhase();
+        const ex = Array.isArray(expected) ? expected : [expected];
+        if (!ex.includes(actual)) {
+          fail(
+            `exec-phase violation: ${this.prototypeName} op=${op} ` +
+              `expected=${ex.join("|")} actual=${actual} protoPhase=${
+                this.protoPhase
+              }`
+          );
+        }
+      },
+
+      ensureSetup: (op) => sys.ensureExecPhase(op, "setup"),
+      ensureRuntime: (op) => {
+        // runtime = not setup (render/callback/unknown)
+        if (this.disposed) fail(`${this.prototypeName} is disposed. op=${op}`);
+        if (this.getPhase() === "setup") {
+          fail(
+            `runtime-only violation: ${this.prototypeName} op=${op} ` +
+              `actual=setup protoPhase=${this.protoPhase}`
+          );
+        }
+      },
+      ensureCallback: (op) => sys.ensureExecPhase(op, "callback"),
+    };
+
+    for (const m of modules) {
       const vault = new CapsVault<any>();
+      vault.attach({ __sys: sys });
+
       const controller = asCapsController(vault);
-
-      const mod = f.create(init, vault); // vault 同时满足 CapsVaultView（有 get/has/onChange/epoch）
-
-      this.records.push({
-        name: mod.name,
-        vault,
-        controller,
-        module: mod,
+      const module: AnyModule = m.create({
+        init: { prototypeName: this.prototypeName },
+        caps: vault,
       });
 
-      // expose facade by module name
-      this.facades[mod.name] = mod.facade as ModuleFacade;
+      this.records.push({ name: m.name, vault, controller, module });
+      this.facades[m.name] = module.facade;
+      if ((module as any).port !== undefined)
+        this.ports[m.name] = (module as any).port;
     }
   }
 
   setProtoPhase(phase: ProtoPhase): void {
-    this.phase = phase;
+    this.protoPhase = phase;
     for (const r of this.records) {
       r.module.hooks.onProtoPhase?.(phase);
     }
@@ -57,26 +104,33 @@ export class RuntimeModuleHub implements ModuleHub {
     return this.facades;
   }
 
+  getPort<T>(moduleName: string): T | undefined {
+    return this.ports[moduleName] as T | undefined;
+  }
+
   getCapsController<Caps extends object>(
     moduleName: string
   ): CapsController<Caps> | undefined {
-    const r = this.records.find((x) => x.name === moduleName);
-    return r?.controller;
+    const rec = this.records.find((r) => r.name === moduleName);
+    return rec?.controller as any;
   }
 
   dispose(): void {
-    // If modules need explicit disposal, add ModuleInternal.dispose later.
+    if (this.disposed) return;
+    this.disposed = true;
+
+    // dispose hooks first so modules can teardown while caps still readable
     for (const r of this.records) {
       r.module.hooks.dispose?.();
-      // reset caps to signal detach
-      r.controller.reset();
     }
-    this.records = [];
-    this.facades = {};
-  }
 
-  getPort<T>(moduleName: string): T | undefined {
-    const r = this.records.find((x) => x.name === moduleName);
-    return (r?.module as any).port as T | undefined;
+    // invalidate caps
+    for (const r of this.records) {
+      try {
+        r.vault.reset();
+      } catch {
+        // ignore v0
+      }
+    }
   }
 }

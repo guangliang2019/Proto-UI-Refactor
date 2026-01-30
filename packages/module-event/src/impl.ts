@@ -3,7 +3,7 @@ import type { ProtoEventCallback, ProtoPhase, RunHandle } from "@proto-ui/core";
 import { illegalPhase } from "@proto-ui/core";
 
 import { ModuleBase } from "@proto-ui/module-base";
-import type { CapsVaultView } from "@proto-ui/module-base";
+import type { CapsVaultView, WithSystemCaps } from "@proto-ui/module-base";
 
 import type { EventCaps } from "./types";
 import { EventKernel } from "./kernel";
@@ -42,7 +42,7 @@ export class EventModuleImpl extends ModuleBase<EventCaps> {
   private lastRun: RunHandle<any> | null = null;
   private isBound = false;
 
-  constructor(caps: CapsVaultView<EventCaps>, prototypeName: string) {
+  constructor(caps: CapsVaultView<EventCaps & WithSystemCaps>, prototypeName: string) {
     super(caps);
     this.prototypeName = prototypeName;
   }

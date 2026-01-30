@@ -1,16 +1,15 @@
 // packages/module-props/src/create.ts
-import type { ModuleInit } from "@proto-ui/core";
 import { createModule } from "@proto-ui/module-base";
-import type { CapsVaultView } from "@proto-ui/module-base";
+import type { ModuleFactoryArgs, WithSystemCaps } from "@proto-ui/module-base";
 import type { PropsBaseType } from "@proto-ui/types";
 
 import type { PropsCaps, PropsFacade, PropsModule, PropsPort } from "./types";
 import { PropsModuleImpl } from "./impl";
 
 export function createPropsModule<P extends PropsBaseType>(
-  init: ModuleInit,
-  caps: CapsVaultView<PropsCaps<P>>
+  ctx: ModuleFactoryArgs<PropsCaps<P> & WithSystemCaps>
 ): PropsModule<P> {
+  const { init, caps } = ctx;
   return createModule<
     "props",
     "instance",

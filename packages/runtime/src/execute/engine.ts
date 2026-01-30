@@ -29,6 +29,8 @@ import {
 // The engine does NOT create timeline; it only consumes an injected instance.
 import { RuntimeTimeline } from "./timeline";
 import { createEventModule } from "@proto-ui/module-event";
+import { createStateModule } from "@proto-ui/module-state";
+import { ExecPhase } from "@proto-ui/module-base";
 
 export type Engine<P extends PropsBaseType> = {
   // state
@@ -60,7 +62,7 @@ export function createEngine<P extends PropsBaseType>(
   proto: Prototype<P>,
   opt?: { allowRunUpdate?: boolean }
 ): Engine<P> {
-  let phase: Phase = "unknown";
+  let phase: ExecPhase = "unknown";
 
   // --- timeline (injected) ---
   // Engine does not own time; it only marks checkpoints when appropriate.
@@ -68,17 +70,21 @@ export function createEngine<P extends PropsBaseType>(
 
   const st = {
     prototypeName: proto.name,
-    getPhase: () => phase as any,
+    getPhase: () => phase,
   };
 
   const lifecycle = createLifecycleRegistry<P>();
   const rules = new RuleRegistry();
 
-  const moduleHub = new RuntimeModuleHub({ prototypeName: proto.name }, [
-    { name: "feedback", create: createFeedbackModule },
-    { name: "props", create: createPropsModule },
-    { name: "event", create: createEventModule },
-  ]);
+  const moduleHub = new RuntimeModuleHub(
+    { prototypeName: proto.name, getPhase: () => phase },
+    [
+      { name: "feedback", create: createFeedbackModule },
+      { name: "props", create: createPropsModule },
+      { name: "event", create: createEventModule },
+      { name: "state", create: createStateModule },
+    ]
+  );
 
   const def = createDefHandle<P>(st, lifecycle, rules, moduleHub);
 

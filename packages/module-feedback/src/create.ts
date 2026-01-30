@@ -1,21 +1,22 @@
-import type { StyleHandle } from "@proto-ui/core";
-import type { ModuleInit, ProtoPhase } from "@proto-ui/core";
-import { illegalPhase } from "@proto-ui/core";
-import { createModule, ModuleBase } from "@proto-ui/module-base";
-import type { CapsVaultView } from "@proto-ui/module-base";
-import type {
-  FeedbackCaps,
-  FeedbackFacade,
-  FeedbackInternal,
-  FeedbackModule,
-} from "./types";
+// packages/module-feedback/src/create.ts
+// ✅ 改造：把 createFeedbackModule 从 (init, caps) 改成 ({ init, caps })
 
+import type { StyleHandle, ModuleInit, ProtoPhase } from "@proto-ui/core";
+import { illegalPhase } from "@proto-ui/core";
+import {
+  createModule,
+  ModuleBase,
+  type ModuleFactoryArgs,
+} from "@proto-ui/module-base";
+import type { CapsVaultView, WithSystemCaps } from "@proto-ui/module-base";
+import type { FeedbackCaps, FeedbackFacade, FeedbackModule } from "./types";
 import { FeedbackStyleRecorder } from "@proto-ui/core";
 
 export function createFeedbackModule(
-  init: ModuleInit,
-  caps: CapsVaultView<FeedbackCaps>
+  ctx: ModuleFactoryArgs<FeedbackCaps>
 ): FeedbackModule {
+  const { init, caps } = ctx;
+
   return createModule<"feedback", "instance", FeedbackCaps, FeedbackFacade>({
     name: "feedback",
     scope: "instance",
@@ -27,7 +28,7 @@ export function createFeedbackModule(
         private dirty = false;
         private flushRequested = false;
 
-        constructor(caps: CapsVaultView<FeedbackCaps>) {
+        constructor(caps: CapsVaultView<FeedbackCaps & WithSystemCaps>) {
           super(caps);
         }
 

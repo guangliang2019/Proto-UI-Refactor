@@ -5,9 +5,10 @@ import type { RuleSpec } from "@proto-ui/rule";
 import type { PropsBaseType } from "@proto-ui/types";
 import { RuleRegistry } from "../rule";
 import { ModuleHub } from "../module-hub/types";
-import { FeedbackFacade } from "@proto-ui/module-feedback";
-import { PropsFacade } from "@proto-ui/module-props";
-import { EventFacade } from "@proto-ui/module-event";
+import type { FeedbackFacade } from "@proto-ui/module-feedback";
+import type { PropsFacade } from "@proto-ui/module-props";
+import type { EventFacade } from "@proto-ui/module-event";
+import type { StateFacade } from "@proto-ui/module-state";
 
 export type LifecycleKind = "created" | "mounted" | "updated" | "unmounted";
 
@@ -39,6 +40,7 @@ export const createDefHandle = <P extends PropsBaseType>(
   const feedback = facades["feedback"] as FeedbackFacade;
   const props = facades["props"] as PropsFacade<P>;
   const event = facades["event"] as EventFacade<P>;
+  const state = facades["state"] as StateFacade;
   const ensureSetup = (op: string) => {
     const phase = st.getPhase();
     if (phase !== "setup") {
@@ -122,6 +124,29 @@ export const createDefHandle = <P extends PropsBaseType>(
       onGlobal: (type, cb, options) => event.onGlobal(type, cb, options),
       offGlobal: (type, cb, options) => event.offGlobal(type, cb, options),
       offToken: (token) => event.offToken(token),
+    },
+
+    state: {
+      bool(semantic, defaultValue) {
+        ensureSetup("def.state.bool");
+        return state.bool(semantic, defaultValue);
+      },
+      enum(semantic, defaultValue, spec) {
+        ensureSetup("def.state.enum");
+        return state.enum(semantic, defaultValue, spec);
+      },
+      string(semantic, defaultValue, spec) {
+        ensureSetup("def.state.string");
+        return state.string(semantic, defaultValue, spec);
+      },
+      numberRange(semantic, defaultValue, spec) {
+        ensureSetup("def.state.numberRange");
+        return state.numberRange(semantic, defaultValue, spec);
+      },
+      numberDiscrete(semantic, defaultValue, spec) {
+        ensureSetup("def.state.numberDiscrete");
+        return state.numberDiscrete(semantic, defaultValue, spec);
+      },
     },
   };
 };

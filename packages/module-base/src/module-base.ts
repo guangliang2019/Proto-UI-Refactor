@@ -1,6 +1,6 @@
-// packages/module-base/src/module-base.ts
 import type { ProtoPhase } from "@proto-ui/core";
 import type { CapsVaultView } from "./caps-vault";
+import type { WithSystemCaps } from "./system-caps";
 
 /**
  * Thin base for modules:
@@ -12,16 +12,21 @@ import type { CapsVaultView } from "./caps-vault";
  */
 export abstract class ModuleBase<Caps extends object> {
   protected protoPhase: ProtoPhase = "setup";
-  protected readonly caps: CapsVaultView<Caps>;
+  protected readonly caps: CapsVaultView<Caps & WithSystemCaps>;
 
   private pending: Array<() => void> = [];
 
-  constructor(caps: CapsVaultView<Caps>) {
+  constructor(caps: CapsVaultView<Caps & WithSystemCaps>) {
     this.caps = caps;
     this.caps.onChange((epoch) => {
       this.onCapsEpoch(epoch);
       this.flushPending();
     });
+  }
+
+  /** optional convenience getter */
+  protected get sys() {
+    return this.caps.get("__sys");
   }
 
   onProtoPhase(phase: ProtoPhase): void {

@@ -1,165 +1,140 @@
-# internal/contracts/lifecycle/adapter-lifecycle.v0.md
+# Adapter Lifecycle Contract (v0)
 
-This document defines **Adapter Author obligations** and
-the **canonical lifecycle checkpoints** used by Proto UI runtime.
+This document defines the **obligations and constraints for Adapter Authors**
+(Web Components, React, Vue, etc.).
 
-> Scope: Adapter authors and runtime wiring.
-> Audience: engineers implementing `executeWithHost` or host adapters.
+It specifies how host-specific lifecycles MUST be mapped
+into Proto UI’s canonical lifecycle timeline.
 
----
-
-## Canonical Timeline (v0)
-
-Adapters must map host behavior into the following **ordered checkpoints**.
-Checkpoints must not be skipped or reordered.
-
-### CP0 — `setup:end`
-
-- Prototype setup has completed.
-- Modules are created.
-- No host resources are assumed available.
+This document is **normative**.
 
 ---
 
-### CP1 — `host:ready`
+## Canonical Timeline
 
-- Runtime is bound to a host instance.
-- Host-provided resources may be injected as caps.
+Proto UI defines a single canonical lifecycle timeline,
+refined by **checkpoints (CP)**.
 
-**Typical uses**:
-
-- attach raw props sources
-- attach effect ports
-- attach host schedulers or root references
+Adapters MUST map host behavior into this timeline.
+Adapters MUST NOT introduce parallel or competing lifecycle models.
 
 ---
 
-### CP2 — `tree:logical-ready`
+## Checkpoints
 
-- Render function has produced a template tree.
-- No host commit has occurred.
+### CP0 — Setup Exit
 
-**Typical uses**:
+- `proto.setup(def)` has returned.
+- No lifecycle callbacks have run yet.
 
-- context tree construction
-- structural analysis (slots, roles, providers)
-- logic-only initialization
+**Domain mapping**
 
-**Forbidden**:
-
-- touching real view instances
-- enabling events
+- At CP0:
+  - `__sys.domain()` MUST switch from `"setup"` to `"runtime"`.
 
 ---
 
-### CP3 — `commit:done`
+### CP1 — Created Callbacks
 
-- `host.commit(children)` has completed.
-- View nodes may physically exist.
-
-**Not guaranteed**:
-
-- stable instance reachability (framework refs may not be ready)
+- All `created` callbacks are executed.
 
 ---
 
-### CP4 — `instance:reachable`
+### CP2 — Logical Tree Ready
 
-- Rendered interaction instances are reachable and stable.
-- This is the **event effectiveness gate**.
-
-**Rules**:
-
-- Events may not produce external effects before CP4.
-- Adapters are encouraged to bind events at or after CP4.
+- Render function has executed.
+- Logical render tree is complete.
 
 ---
 
-### CP5 — `afterRenderCommit`
+### CP3 — Commit Start
 
-- Runtime calls `moduleHub.afterRenderCommit()`.
-- Commit-related module synchronization may occur.
-
----
-
-### CP6 — `protoPhase:mounted`
-
-- Runtime enters mounted phase synchronously.
-- Does not imply mounted callbacks have run.
+- Host commit process begins.
 
 ---
 
-### CP7 — `lifecycle:mounted-callbacks`
+### CP4 — Commit Done
 
-- Host-scheduled mounted callbacks execute.
-- User-visible side effects are permitted.
-
----
-
-## Update Cycle
-
-For updates, adapters must preserve the relative order:
-
-```
-(sync props)
-→ CP2
-→ CP3
-→ CP4
-→ CP5
-→ protoPhase:updated
-→ lifecycle.updated callbacks
-```
+- DOM / host tree is fully committed.
+- Effects depending on committed output may be enabled.
 
 ---
 
-## Unmount Cycle (v0)
+### CP5 — Mounted Callbacks
 
-Unmounting is split into **three required checkpoints**.
-
-### CP8 — `unmount:begin`
-
-- Host indicates instance is being detached.
-- Events must become ineffective immediately.
+- All `mounted` callbacks are executed.
+- Component is now considered fully active.
 
 ---
 
-### CP9 — `lifecycle:unmounted-callbacks`
+### CP6 — Update Render
 
-- `lifecycle.unmounted` callbacks execute.
-- `run` and modules must remain usable.
-
----
-
-### CP10 — `dispose:done`
-
-- `moduleHub.dispose()` is executed.
-- All caps are reset.
-- No further access to runtime resources is permitted.
+- Render triggered by update.
 
 ---
 
-## Mandatory Adapter Rules
+### CP7 — Update Commit
 
-- CP4 is the global event effectiveness gate.
-- `moduleHub` **must not** be disposed before CP9 completes.
-- Checkpoints must be strictly ordered.
-- Violations must be treated as implementation errors.
+- Commit triggered by update.
 
 ---
 
-## Testing Requirements
+### CP8 — Updated Callbacks
 
-Adapters and runtime must provide contract tests that verify:
-
-- ordering invariance
-- CP4 event gating
-- unmounted usability vs post-disposal invalidation
-- correct update sequencing
+- All `updated` callbacks are executed.
 
 ---
 
-## Notes on Host Diversity
+### CP9 — Unmount Begin
 
-- Web Components may map CP4 ≈ CP3.
-- Framework adapters may delay CP4 until refs are stable.
-- Stronger guarantees are allowed; weaker guarantees are not.
+- Component is being disconnected / unmounted.
+- `unmounted` callbacks are about to run.
+
+**Availability guarantees**
+
+- All module facades and handles MUST remain usable.
+- `__sys.isDisposed()` MUST be `false`.
+
+---
+
+### CP10 — Dispose Complete
+
+- Component instance is fully disposed.
+- All module resources are released.
+
+**Disposal guarantees**
+
+- At CP10:
+  - `__sys.isDisposed()` MUST become `true`.
+- After CP10:
+  - Any access to module facades or handles guarded by `__sys`
+    MUST throw.
+
+---
+
+## Mandatory Rules
+
+1. Adapters MUST preserve checkpoint ordering.
+2. Adapters MUST NOT reorder callbacks relative to checkpoints.
+3. Adapters MUST NOT dispose modules before CP10.
+4. Adapters MUST ensure CP9 callbacks (`unmounted`) run
+   before disposal.
+5. Adapters MUST correctly toggle `__sys.domain()` and
+   `__sys.isDisposed()` at CP0 and CP10 respectively.
+
+Violations of these rules are considered adapter bugs.
+
+---
+
+## Error Handling
+
+Adapters MUST surface lifecycle violations as runtime errors.
+Silent failure or partial execution is forbidden.
+
+---
+
+## Versioning
+
+- Version: **v0**
+- v0 defines ordering, checkpoints, and guard mappings.
+- Future versions may add checkpoints but MUST NOT break v0 semantics.

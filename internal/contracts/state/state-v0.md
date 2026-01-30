@@ -1,401 +1,183 @@
 # state.v0.md
 
-> Status: Draft – implementation-ready (contract-first)
-> This contract specifies Proto UI **state**: semantic state slots, visibility, handles, events, lifecycle, and integrations.
+> Status: Draft – implementation-aligned (v0)
+> This contract specifies Proto UI **state** in v0: semantic state slots, handles, phase/dispose rules, and rendering interaction constraints.
+>
+> **Note (important):** v0 contract is intentionally minimal and reflects the current implementation.
+> Features like visibility profiles, `watch/subscribe`, semantic collision, and spec validation are **NOT part of v0** and are tracked in the Roadmap section.
 
 ---
 
 ## 0. Scope & Non-goals
 
-### 0.1 Scope
+### 0.1 Scope (v0)
 
 State provides:
 
-- Semantic state slots (state-machine leaning) with explicit specs and validation.
-- `StateId` (internal identity) + required `semantic` (human semantic label).
-- Handle-based capabilities (get/set/watch/subscribe) with strict phase rules.
-- Integration points for `expose` and `rule`.
+- Setup-time creation of semantic state slots via `def.state.*`.
+- Handle-based operations:
+  - `get()`
+  - `setDefault(v)`
+  - `set(v, reason?)`
+- Strict phase enforcement for setup vs runtime operations.
+- Strict dispose enforcement: handles become unusable after instance dispose.
 
-### 0.2 Non-goals
+### 0.2 Non-goals (v0)
 
-- State mutation **MUST NOT** schedule component update.
-- Implementations **MUST NOT** do implicit dependency tracking from reads (`get()`).
+- State mutation **MUST NOT** schedule or trigger component update/render automatically.
+- State `get()` **MUST NOT** create implicit subscriptions/dependency tracking.
 
 ---
 
 ## 1. Terminology
 
-- **StateSpec**: structured type+constraint declaration.
-- **StateId**: internal unique identifier for a state slot, stable within an instance.
-- **semantic**: required semantic label (see §6).
-- **Visibility**: private / protected / public.
-- **Prototype-side**: within prototype runtime, has `run` handle.
-- **App-side**: external consumer, no `run` handle.
+- **State slot**: a single semantic state value stored in the component instance.
+- **semantic**: a human-readable label string passed at definition time.
+- **OwnedStateHandle<V>**: the handle returned by `def.state.*` for a slot.
+- **setup**: prototype setup execution phase (where `def` is valid).
+- **runtime**: any execution outside setup (callbacks/render-time context boundaries are enforced by SystemCaps).
+- **disposed**: instance has been torn down; module hub has been disposed and caps are invalid.
 
-### 1.1 Hook installation context
-
-Hook installation context exists only when a hook is installed via official facilities (e.g. `defineAsHook`).
-Promotion decisions are based on **dynamic execution context**, not call-site location.
+> Phase enforcement is provided by SystemCaps / exec-phase guard (see: `runtime.exec-phase-guard.v0.md`).
 
 ---
 
-## 2. Facade: definition APIs
+## 2. Facade: definition APIs (setup-only)
 
 State slots are defined via `def.state.*`.
 
+### 2.1 Requirements
+
 - Each definition **MUST** take `semantic: string`.
-- Each definition **MUST** record provider metadata (origin prototype/hook).
-- Each definition returns a state handle whose visibility depends on context (§5).
+- Each definition **MUST** return an `OwnedStateHandle<V>`.
 
-Supported spec categories (v0):
+### 2.2 Supported definitions (v0)
 
-- `bool`
-- `enum` (string enum)
-- `string` (strict fallback)
-- `number.range`
-- `number.discrete`
+- `def.state.bool(semantic, defaultValue)`
+- `def.state.enum(semantic, defaultValue, spec)`
+- `def.state.string(semantic, defaultValue, spec?)`
+- `def.state.numberRange(semantic, defaultValue, spec)`
+- `def.state.numberDiscrete(semantic, defaultValue, spec?)`
+
+### 2.3 Setup-only enforcement
+
+Calling `def.state.*` outside setup **MUST** throw.
 
 ---
 
-## 3. Handles & capabilities
+## 3. Handle operations (OwnedStateHandle)
 
-### 3.1 Common operations
+### 3.1 Shape (v0)
+
+`OwnedStateHandle<V>` returned by `def.state.*` **MUST** provide:
 
 - `get(): V`
+- `setDefault(v: V): void`
+- `set(v: V, reason?: StateSetReason): void`
 
+### 3.2 Phase rules (v0)
+
+- `get()`:
   - Allowed in setup and runtime.
-  - **MUST NOT** create subscriptions or implicit dependencies.
-
-- `setDefault(v: V)`
-
+- `setDefault(v)`:
   - Setup-only.
-
-- `set(v: V, reason?: StateSetReason)`
-
+  - Calling in runtime **MUST** throw.
+- `set(v, reason?)`:
   - Runtime-only.
-  - Emits notifications when the value changes (§9).
+  - Calling in setup **MUST** throw.
 
-- `watch(cb)`
+### 3.3 Dispose rules (v0)
 
-  - Setup-only registration; callback runs at runtime.
-  - Prototype-scoped (auto-cleanup on unmount).
+After instance dispose:
 
-- `subscribe(cb)`
+- `get()` **MUST** throw
+- `setDefault()` **MUST** throw
+- `set()` **MUST** throw
 
-  - Runtime-allowed registration (app-side only).
-  - External-scoped; caller owns cleanup; additionally instance disconnect auto-unsubscribes (§10).
-
-### 3.2 Capability matrix
-
-#### private
-
-- get ✅
-- setDefault ✅ (setup-only)
-- set ✅ (runtime-only)
-- watch ❌
-- subscribe ❌
-
-#### protected
-
-- get ✅
-- setDefault ✅ (setup-only)
-- set ✅ (runtime-only)
-- watch ✅ (setup-only register; runtime callback; auto-cleanup)
-- subscribe ❌
-
-#### public (prototype-side handle)
-
-- get ✅
-- watch ✅ (setup-only register; runtime callback; auto-cleanup)
-- set ❌
-- subscribe ❌
-
-#### public (app-side handle)
-
-- get ✅
-- subscribe ✅ (runtime-allowed; no dedup; manual cleanup; auto-unsubscribe on disconnect)
-- set ❌
-- watch ❌
-
-> Rule: `watch` is prototype-lifecycle scoped; `subscribe` is external/app scoped. They are different handle shapes.
+During `unmounted` callback (while instance is still alive), handle operations are allowed.
 
 ---
 
-## 4. Phase rules (setup vs runtime)
+## 4. Rendering interaction rules (v0)
 
-### 4.1 Setup-only APIs
+### 4.1 No implicit re-render
 
-- `watch(...)`
-- `setDefault(...)`
+State mutation **MUST NOT** trigger a render/commit automatically.
 
-### 4.2 Runtime-only APIs
+- If a state value changes after mount, the DOM output MUST remain unchanged until an explicit update is requested by the host/controller (`update()`).
 
-- `set(...)`
+### 4.2 Visibility to initial render
 
-### 4.3 Enforcement
+A state mutation performed in the `created` callback happens before the first commit and therefore:
 
-- Calling setup-only APIs in runtime **MUST** throw.
-- Calling runtime-only APIs in setup **MUST** throw.
+- The initial render **MUST** observe the updated state value (created-time set is visible to first render).
 
----
-
-## 5. Visibility rules & promotion
-
-### 5.1 Default visibility
-
-- A state defined in a normal component setup is **private** by default.
-
-### 5.2 Hook promotion
-
-- If a state is defined under hook installation context, it **MUST** be treated as **protected** for the hook caller.
-
-### 5.3 Public states
-
-- A state **MUST NOT** become public by definition alone.
-- Only `expose(state)` (or equivalent) can produce a public state.
-
-### 5.4 Write protection
-
-- App-side consumers **MUST NOT** obtain writable handles via any legal path.
+> v0 does not define any setup-time mutation visibility rules besides enforcing phase:
+> setup-time `set()` is invalid and MUST throw.
 
 ---
 
-## 6. semantic format & collision rules
+## 5. Events / watch / subscribe (not in v0)
 
-### 6.1 semantic format
+v0 does **NOT** specify:
 
-- `semantic` is required.
-- `semantic` is a dotted path of segments: `seg1.seg2.seg3`.
-- Each segment **MUST** be `kebab-case` (`[a-z0-9]+(-[a-z0-9]+)*`).
-- `.` is the only segment delimiter.
+- `watch(cb)` registration or callback delivery semantics
+- app-side `subscribe(cb)` semantics
+- disconnect events
+- value-domain validation / spec enforcement
+- semantic format constraints or collision detection
+- capability profiles (owned/borrowed/observed)
+- expose integration
 
-### 6.2 Collision domain
-
-Collision checks apply within a single component instance’s state registry, including:
-
-- local states
-- hook-injected states (transitively)
-
-### 6.3 Collision policy
-
-- Two distinct state slots with the same `semantic` **MUST** fail fast during setup (throw).
-- Hooks **MUST NOT** auto-prefix semantics to avoid collisions.
-- Resolving semantic collisions is a **Component Author responsibility** (e.g. choose different hooks, rename semantics, or otherwise avoid conflict).
-
-### 6.4 Diagnostics requirements
-
-Thrown errors **MUST** include:
-
-- the conflicting `semantic`
-- origin/provider info (which hook/prototype introduced it)
-- a minimal provider chain (who brought it in)
+These are deferred to v1+ (see Roadmap).
 
 ---
 
-## 7. Spec semantics & value domain
+## 6. Error model (v0)
 
-### 7.1 Value domain
+### 6.1 Phase violations
 
-- State values **MUST NOT** be `null` or `undefined`.
-- Values **MUST** satisfy their declared spec; invalid values **MUST** throw.
+Implementations **MUST** throw on phase violations described in §3.2.
 
-### 7.2 bool
+Minimum diagnostic requirements:
 
-- Value must be boolean.
+- include `prototypeName`
+- include `op` (operation label)
+- include `expected` and `actual` phase/domain information (directly or indirectly)
 
-### 7.3 enum (string)
+Exact error typing/codes are not required in v0.
 
-- `options: readonly string[]` is required.
-- Values outside `options` must throw.
+### 6.2 Dispose violations
 
-### 7.4 string (strict fallback)
-
-- `options: readonly string[]` is required.
-- Values outside `options` must throw.
-
-> Non-normative: `string` is a discouraged fallback; strictness is intentional friction.
-
-### 7.5 number.range
-
-- Fields: `min`, `max`, `clamp?: boolean`
-- If clamp=true: clamp out-of-range.
-- Otherwise: out-of-range must throw.
-
-### 7.6 number.discrete
-
-- Fields: `options?`, `min?`, `max?`, `step?`
-- Precedence:
-
-  - If `options` exists, it is authoritative; values in `options` are valid even outside `min/max/step`.
-  - If no `options`, `min/max/step` define validity; invalid values must throw.
+Implementations **MUST** throw when invoking handle operations after dispose (§3.3).
 
 ---
 
-## 8. Events & callbacks
-
-### 8.1 Set reason
-
-- `set(v, reason?)` may carry a reason.
-- Reasons are opaque to state core; they are surfaced to watchers/subscribers as-is.
-
-`StateSetReason` is intentionally loose:
-
-- `type StateSetReason = unknown`
-
-### 8.2 Event union (v0)
-
-`StateEvent<V> = StateNextEvent<V> | StateDisconnectEvent`
-
-- `StateNextEvent<V>`:
-
-  - `type: 'next'`
-  - `next: V`
-  - `prev: V`
-  - `reason?: StateSetReason`
-
-- `StateDisconnectEvent`:
-
-  - `type: 'disconnect'`
-  - `reason: DisconnectReason`
-
-### 8.3 Prototype-side watch callback signature
-
-Prototype runtime callbacks **MUST** take `run` as the first parameter.
-
-- `watch(cb)` registers:
-
-  - `cb: (run, e: StateEvent<V>) => void`
-
-### 8.4 App-side subscribe callback signature
-
-External callbacks have no `run` handle:
-
-- `subscribe(cb)` registers:
-
-  - `cb: (e: StateEvent<V>) => void`
-
----
-
-## 9. Notification semantics
-
-### 9.1 When notifications fire
-
-- `watch/subscribe` callbacks fire **only when the value changes**.
-- Change detection **MUST** use `Object.is(prev, next)`.
-
-  - If `Object.is(prev, next)` is true, no `next` event is emitted.
-
-### 9.2 No coalescing / no merging
-
-- For a sequence of value changes, each successful change emits exactly one `next` event.
-- Implementations **MUST NOT** merge multiple changes into one event.
-
-### 9.3 Re-entrancy
-
-If callbacks trigger additional `set(...)` during notification delivery:
-
-- Value changes apply immediately (`get()` reflects latest).
-- Implementations **MUST NOT** deliver nested notifications synchronously.
-- Additional notifications **MUST** be queued and delivered after the current delivery completes (FIFO).
-
----
-
-## 10. Lifecycle & resource management
-
-### 10.1 Prototype-side watch cleanup
-
-- Prototype-side watches **MUST** be auto-cleaned on component unmount.
-
-### 10.2 App-side subscribe rules
-
-- `subscribe` **MUST NOT** deduplicate callbacks.
-
-  - Each call creates a distinct subscription record.
-
-- `unsubscribe()` **MUST** be idempotent.
-
-### 10.3 Disconnect behavior
-
-Subscriptions are instance-bound in v0.
-
-When the source component instance disconnects/unmounts, the implementation **MUST**:
-
-1. auto-unsubscribe all app-side subscriptions for that instance
-2. deliver a final `{ type:'disconnect', reason }` event to each subscriber
-3. release callback references (no retention)
-
-`DisconnectReason` (v0):
-
-- `unmount`
-
-No subscription inheritance:
-
-- Remounting a component **MUST NOT** reattach prior subscriptions.
-
----
-
-## 11. Expose integration
-
-### 11.1 Ownership
-
-- Mapping configuration belongs to `expose`, not `state`.
-- State contract does not define mapping targets or serialization formats.
-
-### 11.2 Mapping timing
-
-If a public state is mapped by expose:
-
-- Mapping side effects **MUST** be applied synchronously within `set(...)` (before it returns).
-- This does not schedule component update.
-
----
-
-## 12. Error model
-
-Implementations **MUST** throw for:
-
-- Phase violations
-- Spec violations
-- Semantic collisions
-- Illegal capability access (e.g. setting public state)
-
-### 12.1 Error typing (minimum requirement)
-
-Errors **MUST** be distinguishable by type or code.
-At minimum, implementations must provide one of:
-
-- `error.code` string, or
-- a stable error class/type per category.
-
-Recommended codes (v0):
-
-- `STATE_PHASE_VIOLATION`
-- `STATE_SPEC_VIOLATION`
-- `STATE_SEMANTIC_COLLISION`
-- `STATE_CAPABILITY_VIOLATION`
-
----
-
-## 13. Contract tests (minimum coverage checklist)
+## 7. Contract tests (v0 minimum coverage)
 
 Implementations MUST be validated for:
 
-1. Spec validation (valid/invalid) for all categories.
-2. Phase enforcement for setup/runtime APIs.
-3. Hook promotion: private → protected in hook installation context.
-4. Semantic collision detection + provider diagnostics.
-5. Notification semantics:
+1. `def.state.*` is setup-only and returns handle with `get/setDefault/set`.
+2. Phase enforcement:
+   - `setDefault` throws in runtime
+   - `set` throws in setup
+3. Rendering interaction:
+   - created-time `set` is visible to initial render
+   - mounted-time `set` does NOT re-render until explicit `update()`
+4. Dispose enforcement:
+   - handles are usable during `unmounted` callback
+   - after dispose, `get/setDefault/set` all throw
 
-   - only on change (Object.is)
-   - no coalescing
-   - prev/next + reason surfaced
-   - re-entrancy queueing
+---
 
-6. Prototype-side watch auto-cleanup on unmount.
-7. App-side subscribe:
+## 8. Roadmap (v1+; non-normative)
 
-   - no dedup
-   - unsubscribe idempotent
-   - disconnect emits final event + releases callbacks
+Potential extensions (not part of v0):
 
-8. Expose mapping timing: synchronous within `set(...)`.
+- semantic format constraints and collision detection
+- spec validation (options/min/max/step/clamp)
+- notification semantics and deterministic re-entrancy delivery
+- prototype-side `watch` and app-side `subscribe`
+- capability profiles (owned/borrowed/observed) and hook promotion
+- expose mapping integration and external projections
+- structured error codes/classes

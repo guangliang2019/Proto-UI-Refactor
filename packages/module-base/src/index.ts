@@ -3,3 +3,4 @@ export * from "./caps-vault";
 export * from "./module-base";
 export * from "./create-module";
 export * from "./caps-controller";
+export * from "./system-caps";

@@ -4,6 +4,7 @@ import {
   EventTypeV0,
   PropsBaseType,
   PropsSpecMap,
+  StateEvent,
 } from "@proto-ui/types";
 import {
   UnUse,
@@ -13,6 +14,7 @@ import {
   TemplateChildren,
   TemplateNode,
 } from "./spec";
+import { StateDefAPI } from "./state";
 
 // 统一错误上下文，方便在 runtime 做 phase guard 时给出可诊断信息
 
@@ -94,16 +96,14 @@ export interface DefHandle<Props extends PropsBaseType> {
     ): void;
     offToken(token: EventListenerToken): void;
   };
+
+  state: StateDefAPI;
 }
 
 // render-time 句柄：构造模板 + 只读读取视图（read）
 // 注意：这里不叫 run，避免和 callback-time 的 run 混淆
 export interface RenderReadHandle<Props extends PropsBaseType> {
   props: RunHandle<Props>["props"];
-}
-
-export interface ReservedFactories {
-  slot(): TemplateNode;
 }
 
 export interface ElementFactory {
@@ -120,6 +120,10 @@ export interface RendererHandle<Props extends PropsBaseType> {
   el: ElementFactory;
   r: ReservedFactories;
   read: RenderReadHandle<Props>; // render 阶段可用的 readonly 快照视图
+}
+
+export interface ReservedFactories {
+  slot(): TemplateNode;
 }
 
 /**
@@ -158,3 +162,10 @@ export type ProtoEventCallback<P extends PropsBaseType> = (
   run: RunHandle<P>,
   ev: any
 ) => void;
+
+export type StateWatchCallback<V, P extends PropsBaseType> = (
+  run: RunHandle<P>,
+  e: StateEvent<V>
+) => void;
+
+export type StateSubscribeCallback<V> = (e: StateEvent<V>) => void;
