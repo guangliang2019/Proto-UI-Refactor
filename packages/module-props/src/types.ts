@@ -1,7 +1,11 @@
 // packages/module-props/src/types.ts
 import type { PropsBaseType, PropsSpecMap } from "@proto-ui/types";
-import type { PropsDefaults, PropsSnapshot, WatchInfo } from "@proto-ui/core";
-import type { ModuleInstance } from "@proto-ui/module-base";
+import type {
+  ModuleInstance,
+  PropsDefaults,
+  PropsSnapshot,
+  WatchInfo,
+} from "@proto-ui/core";
 
 export type RawPropsSource<P extends PropsBaseType> = {
   debugName?: string;
@@ -84,8 +88,8 @@ export type PropsPort<P extends PropsBaseType> = {
 };
 
 export type PropsModule<P extends PropsBaseType> = ModuleInstance<
-  "props",
-  "instance",
-  PropsFacade<P>,
-  PropsPort<P>
->;
+  PropsFacade<P>
+> & {
+  name: "props";
+  scope: "instance";
+};
