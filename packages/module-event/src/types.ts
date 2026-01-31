@@ -1,15 +1,7 @@
 // packages/module-event/src/types.ts
-import type {
-  ModuleInstance,
-  ProtoEventCallback,
-  RunHandle,
-} from "@proto-ui/core";
+import type { ModuleInstance } from "@proto-ui/core";
 import type { ModulePort } from "@proto-ui/core";
-import {
-  EventListenerToken,
-  EventTypeV0,
-  PropsBaseType,
-} from "@proto-ui/types";
+import { EventListenerToken, EventTypeV0 } from "@proto-ui/types";
 
 export type EventCaps = {
   /** adapter-defined root target (interaction subject) */
@@ -18,49 +10,48 @@ export type EventCaps = {
   getGlobalTarget(): EventTarget | null;
 };
 
-export type EventFacade<P extends PropsBaseType> = {
-  // setup-only
-  on(
-    type: EventTypeV0,
-    cb: ProtoEventCallback<P>,
-    options?: EventListenerOptions
-  ): EventListenerToken;
+export type EventDispatch = (id: string, ev: any) => void;
 
-  off(
-    type: EventTypeV0,
-    cb: ProtoEventCallback<P>,
-    options?: EventListenerOptions
-  ): void;
-
+export type EventFacade = {
+  // --- setup-only registration (opaque to module) ---
+  on(type: EventTypeV0, options?: EventListenerOptions): EventListenerToken;
   onGlobal(
     type: EventTypeV0,
-    cb: ProtoEventCallback<P>,
     options?: EventListenerOptions
   ): EventListenerToken;
 
-  offGlobal(
+  /** precise removal */
+  offToken(token: EventListenerToken): void;
+
+  /**
+   * Optional helper (still setup-only):
+   * remove ONE latest matching entry by (kind,type,options) without knowing cb.
+   * You can omit this if runtime will keep its own map.
+   */
+  offLatest?(
+    kind: "root" | "global",
     type: EventTypeV0,
-    cb: ProtoEventCallback<P>,
     options?: EventListenerOptions
   ): void;
 
-  /** precise removal for one specific registration */
-  offToken(token: EventListenerToken): void;
+  /**
+   * Setup-only: redirect all "root" bindings to a specified target-like.
+   * Does NOT affect global registrations.
+   */
+  redirectRoot(target: EventTarget): void;
 };
 
-export type EventModule<P extends PropsBaseType> = ModuleInstance<
-  EventFacade<P>
-> & {
+export type EventModule = ModuleInstance<EventFacade> & {
   name: "event";
   scope: "instance";
 };
 
-export type EventPort<P extends PropsBaseType> = ModulePort & {
+export type EventPort = ModulePort & {
   /**
    * Bind all registered listeners using current targets.
-   * Runtime should call this at safe points when `run` is available.
+   * Runtime supplies a dispatcher to handle invocation semantics.
    */
-  bind(run: RunHandle<P>): void;
+  bind(dispatch: EventDispatch): void;
 
   /** Unbind all currently bound listeners (registrations kept) */
   unbind(): void;

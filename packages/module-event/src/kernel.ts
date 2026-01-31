@@ -1,7 +1,6 @@
 // packages/module-event/src/kernel.ts
 import { EventTypeV0 } from "@proto-ui/types";
-import type { EventDiag } from "./types";
-import { ProtoEventCallback } from "@proto-ui/core";
+import type { EventDiag, EventDispatch } from "./types";
 
 type TargetKind = "root" | "global";
 
@@ -11,7 +10,6 @@ type Reg = {
 
   kind: TargetKind;
   type: EventTypeV0;
-  cb: ProtoEventCallback<any>;
   options?: EventListenerOptions;
 
   wrapper?: (ev: any) => void;
@@ -30,10 +28,8 @@ function sameOptions(a: any, b: any) {
   if (Object.is(a, b)) return true;
   if (a == null || b == null) return false;
 
-  // Primitive-ish compare
   if (typeof a !== "object" || typeof b !== "object") return false;
 
-  // Shallow object compare (v0 pragmatic)
   if (isPlainObject(a) && isPlainObject(b)) {
     const ak = Object.keys(a);
     const bk = Object.keys(b);
@@ -45,17 +41,11 @@ function sameOptions(a: any, b: any) {
     return true;
   }
 
-  // Fallback: strict identity for non-plain objects (AbortSignal, etc.)
   return false;
 }
 
-function matchReg(
-  r: Reg,
-  type: EventTypeV0,
-  cb: ProtoEventCallback<any>,
-  options?: any
-) {
-  return r.type === type && r.cb === cb && sameOptions(r.options, options);
+function matchReg(r: Reg, kind: TargetKind, type: EventTypeV0, options?: any) {
+  return r.kind === kind && r.type === type && sameOptions(r.options, options);
 }
 
 export class EventKernel {
@@ -67,14 +57,9 @@ export class EventKernel {
     return `ev_${this.seq}`;
   }
 
-  on(
-    kind: TargetKind,
-    type: EventTypeV0,
-    cb: ProtoEventCallback<any>,
-    options?: any
-  ) {
+  on(kind: TargetKind, type: EventTypeV0, options?: any) {
     const id = this.nextId();
-    this.regs.push({ id, kind, type, cb, options });
+    this.regs.push({ id, kind, type, options });
     return id;
   }
 
@@ -82,6 +67,29 @@ export class EventKernel {
     for (let i = this.regs.length - 1; i >= 0; i--) {
       const r = this.regs[i]!;
       if (r.id !== id) continue;
+
+      if (r.wrapper && r.boundTarget) {
+        r.boundTarget.removeEventListener(
+          r.type as any,
+          r.wrapper as any,
+          r.options as any
+        );
+      }
+
+      this.regs.splice(i, 1);
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Remove ONE matching registration (latest-first), by (kind,type,options).
+   * This is optional but often convenient for runtime facade.
+   */
+  offLatest(kind: TargetKind, type: EventTypeV0, options?: any) {
+    for (let i = this.regs.length - 1; i >= 0; i--) {
+      const r = this.regs[i]!;
+      if (!matchReg(r, kind, type, options)) continue;
 
       if (r.wrapper && r.boundTarget) {
         r.boundTarget.removeEventListener(
@@ -107,43 +115,15 @@ export class EventKernel {
     return false;
   }
 
-  /**
-   * Remove ONE matching registration (latest-first).
-   * If bound, it detaches immediately.
-   */
-  off(
-    kind: TargetKind,
-    type: EventTypeV0,
-    cb: ProtoEventCallback<any>,
-    options?: any
+  bindAll(
+    dispatch: EventDispatch,
+    getTarget: (kind: TargetKind) => EventTarget
   ) {
-    for (let i = this.regs.length - 1; i >= 0; i--) {
-      const r = this.regs[i]!;
-      if (r.kind !== kind) continue;
-      if (!matchReg(r, type, cb, options)) continue;
-
-      if (r.wrapper && r.boundTarget) {
-        r.boundTarget.removeEventListener(
-          r.type as any,
-          r.wrapper as any,
-          r.options as any
-        );
-      }
-
-      this.regs.splice(i, 1);
-      return true;
-    }
-    return false;
-  }
-
-  bindAll(run: any, getTarget: (kind: TargetKind) => EventTarget) {
     for (const r of this.regs) {
-      if (r.wrapper && r.boundTarget) continue; // already bound
+      if (r.wrapper && r.boundTarget) continue;
 
       const target = getTarget(r.kind);
-
-      // unique wrapper per registration to avoid host dedupe
-      const wrapper = (ev: any) => r.cb(run, ev);
+      const wrapper = (ev: any) => dispatch(r.id, ev);
 
       target.addEventListener(r.type as any, wrapper as any, r.options as any);
 
@@ -165,7 +145,6 @@ export class EventKernel {
     }
   }
 
-  /** unbind + drop registrations */
   cleanupAll() {
     this.unbindAll();
     this.regs.length = 0;
@@ -183,5 +162,9 @@ export class EventKernel {
 
   hasAny(kind: TargetKind) {
     return this.regs.some((r) => r.kind === kind);
+  }
+
+  hasAnyAtAll() {
+    return this.regs.length > 0;
   }
 }

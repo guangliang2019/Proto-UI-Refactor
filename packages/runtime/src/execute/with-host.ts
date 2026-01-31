@@ -7,6 +7,7 @@ import { createEngine } from "./engine";
 import type { PropsFacade, PropsPort } from "@proto-ui/module-props";
 import { createTimeline } from "./timeline";
 import { EventPort } from "@proto-ui/module-event";
+import { __RT_EVENT_REGISTRY } from "../handles";
 
 export function executeWithHost<P extends PropsBaseType>(
   proto: Prototype<P>,
@@ -53,8 +54,23 @@ export function executeWithHost<P extends PropsBaseType>(
     timeline.mark("commit:done");
 
     timeline.mark("instance:reachable");
-    const eventPort = moduleHub.getPort<EventPort<P>>("event");
-    eventPort?.bind?.(run);
+    const eventPort = moduleHub.getPort<EventPort>("event");
+    const eventRegistry = (moduleHub as any)[__RT_EVENT_REGISTRY] as
+      | { dispatch: (run: RunHandle<P>, id: string, ev: any) => void }
+      | undefined;
+
+    if (eventPort?.bind && eventRegistry) {
+      const dispatch = (id: string, ev: any) => {
+        // enforce callback-phase semantics centrally
+        engine.setPhase("callback");
+        propsPort.syncFromHost();
+        dispatchPropsTasks(run);
+        eventRegistry.dispatch(run, id, ev);
+        engine.setPhase("unknown");
+      };
+
+      eventPort.bind(dispatch);
+    }
 
     moduleHub.afterRenderCommit();
     timeline.mark("afterRenderCommit");
@@ -131,8 +147,13 @@ export function executeWithHost<P extends PropsBaseType>(
     timeline.mark("unmount:begin");
     host.onUnmountBegin?.();
 
-    const eventPort = moduleHub.getPort<EventPort<P>>("event");
+    const eventPort = moduleHub.getPort<EventPort>("event");
     eventPort?.unbind?.();
+    const eventRegistry = (moduleHub as any)[__RT_EVENT_REGISTRY] as
+      | { clear: () => void }
+      | undefined;
+
+    eventRegistry?.clear?.();
 
     engine.setPhase("callback");
     // optional: sync + dispatch before unmounted callbacks

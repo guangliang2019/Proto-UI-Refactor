@@ -39,8 +39,14 @@ export const createDefHandle = <P extends PropsBaseType>(
   const facades = modules.getFacades();
   const feedback = facades["feedback"] as FeedbackFacade;
   const props = facades["props"] as PropsFacade<P>;
-  const event = facades["event"] as EventFacade<P>;
+
   const state = facades["state"] as StateFacade;
+
+  const eventMod = facades["event"] as any; // module-event facade (new, cb-less)
+  const eventRegistry = new EventRuntimeRegistry<P>();
+
+  // expose to executeWithHost
+  (modules as any)[__RT_EVENT_REGISTRY] = eventRegistry;
 
   const ensureSetup = (op: string) => {
     const phase = st.getPhase();
@@ -130,11 +136,48 @@ export const createDefHandle = <P extends PropsBaseType>(
     },
 
     event: {
-      on: (type, cb, options) => event.on(type, cb, options),
-      off: (type, cb, options) => event.off(type, cb, options),
-      onGlobal: (type, cb, options) => event.onGlobal(type, cb, options),
-      offGlobal: (type, cb, options) => event.offGlobal(type, cb, options),
-      offToken: (token) => event.offToken(token),
+      on: (type, cb, options) => {
+        ensureSetup(`def.event.on`);
+        // module-event: on(type, options) -> token
+        const token = eventMod.on(type, options);
+        eventRegistry.register("root", type, cb, options, (token as any).id);
+        return token;
+      },
+
+      off: (type, cb, options) => {
+        ensureSetup(`def.event.off`);
+        const hit = eventRegistry.findLatest("root", type, cb, options);
+        if (!hit) return;
+
+        eventRegistry.removeById(hit.id);
+        // call module-event precise removal
+        eventMod.offToken({ id: hit.id } as any);
+      },
+
+      onGlobal: (type, cb, options) => {
+        ensureSetup(`def.event.onGlobal`);
+        const token = eventMod.onGlobal(type, options);
+        eventRegistry.register("global", type, cb, options, (token as any).id);
+        return token;
+      },
+
+      offGlobal: (type, cb, options) => {
+        ensureSetup(`def.event.offGlobal`);
+        const hit = eventRegistry.findLatest("global", type, cb, options);
+        if (!hit) return;
+
+        eventRegistry.removeById(hit.id);
+        eventMod.offToken({ id: hit.id } as any);
+      },
+
+      offToken: (token) => {
+        ensureSetup(`def.event.offToken`);
+        const id = (token as any)?.id;
+        if (typeof id === "string" && id) {
+          eventRegistry.removeById(id);
+        }
+        eventMod.offToken(token);
+      },
     },
 
     state: {
@@ -161,3 +204,96 @@ export const createDefHandle = <P extends PropsBaseType>(
     },
   };
 };
+
+// runtime-private hook for executeWithHost to access event registry
+export const __RT_EVENT_REGISTRY = Symbol.for("__rt_event_registry");
+
+type TargetKind = "root" | "global";
+
+type EventReg<P extends PropsBaseType> = {
+  id: string;
+  kind: TargetKind;
+  type: any;
+  cb: (run: RunHandle<P>, ev: any) => void;
+  options?: any;
+};
+
+function isPlainObject(x: any): x is Record<string, any> {
+  return (
+    !!x &&
+    typeof x === "object" &&
+    (x.constructor === Object || x.constructor == null)
+  );
+}
+
+// must align with contract v0 semantics (shallow compare for plain objects)
+function sameOptions(a: any, b: any) {
+  if (Object.is(a, b)) return true;
+  if (a == null || b == null) return false;
+  if (typeof a !== "object" || typeof b !== "object") return false;
+
+  if (isPlainObject(a) && isPlainObject(b)) {
+    const ak = Object.keys(a);
+    const bk = Object.keys(b);
+    if (ak.length !== bk.length) return false;
+    for (const k of ak) {
+      if (!Object.prototype.hasOwnProperty.call(b, k)) return false;
+      if (!Object.is(a[k], b[k])) return false;
+    }
+    return true;
+  }
+
+  return false;
+}
+
+class EventRuntimeRegistry<P extends PropsBaseType> {
+  // preserve insertion order for latest-first removal
+  private regs: EventReg<P>[] = [];
+
+  register(kind: TargetKind, type: any, cb: any, options: any, id: string) {
+    this.regs.push({ id, kind, type, cb, options });
+  }
+
+  // latest-first find by (kind,type,cb,options)
+  findLatest(
+    kind: TargetKind,
+    type: any,
+    cb: any,
+    options: any
+  ): EventReg<P> | null {
+    for (let i = this.regs.length - 1; i >= 0; i--) {
+      const r = this.regs[i]!;
+      if (r.kind !== kind) continue;
+      if (r.type !== type) continue;
+      if (r.cb !== cb) continue;
+      if (!sameOptions(r.options, options)) continue;
+      return r;
+    }
+    return null;
+  }
+
+  removeById(id: string): boolean {
+    for (let i = this.regs.length - 1; i >= 0; i--) {
+      if (this.regs[i]!.id === id) {
+        this.regs.splice(i, 1);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  dispatch(run: RunHandle<P>, id: string, ev: any) {
+    // find latest; id unique within instance so any match is fine
+    for (let i = this.regs.length - 1; i >= 0; i--) {
+      const r = this.regs[i]!;
+      if (r.id !== id) continue;
+      r.cb(run, ev);
+      return;
+    }
+    // unknown id => no-op (module may still fire after off/unmount race)
+  }
+
+  clear() {
+    this.regs.length = 0;
+  }
+}

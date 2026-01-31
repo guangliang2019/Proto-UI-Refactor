@@ -1,11 +1,11 @@
 // packages/module-event/src/impl.ts
-import type { ProtoEventCallback, ProtoPhase, RunHandle } from "@proto-ui/core";
+import type { ProtoPhase } from "@proto-ui/core";
 import { illegalPhase } from "@proto-ui/core";
 
 import { ModuleBase } from "@proto-ui/module-base";
 import type { CapsVaultView, WithSystemCaps } from "@proto-ui/module-base";
 
-import type { EventCaps } from "./types";
+import type { EventCaps, EventDispatch } from "./types";
 import { EventKernel } from "./kernel";
 import { EventListenerToken, EventTypeV0 } from "@proto-ui/types";
 
@@ -29,20 +29,31 @@ function isValidEventType(type: any): type is EventTypeV0 {
   if (typeof type !== "string" || !type) return false;
   if (type.startsWith("native:")) return type.length > "native:".length;
   if (type.startsWith("host.")) return type.length > "host.".length;
-  // Otherwise, allow only dotted-lowercase-ish names for v0 portability.
-  // (We do NOT enforce membership in the union at runtime; TS already does that,
-  // but runtime may see any string from JS users.)
   return /^[a-z]+(\.[a-z]+)*$/.test(type);
+}
+
+function isEventTargetLike(x: any): x is EventTarget {
+  return (
+    !!x &&
+    (typeof x === "object" || typeof x === "function") &&
+    typeof x.addEventListener === "function" &&
+    typeof x.removeEventListener === "function"
+  );
 }
 
 export class EventModuleImpl extends ModuleBase<EventCaps> {
   private readonly kernel = new EventKernel();
   private readonly prototypeName: string;
 
-  private lastRun: RunHandle<any> | null = null;
+  private overriddenRootTarget: EventTarget | null = null;
+
+  private lastDispatch: EventDispatch | null = null;
   private isBound = false;
 
-  constructor(caps: CapsVaultView<EventCaps & WithSystemCaps>, prototypeName: string) {
+  constructor(
+    caps: CapsVaultView<EventCaps & WithSystemCaps>,
+    prototypeName: string
+  ) {
     super(caps);
     this.prototypeName = prototypeName;
   }
@@ -51,16 +62,28 @@ export class EventModuleImpl extends ModuleBase<EventCaps> {
   // setup-only API (guarded)
   // -------------------------
 
+  private ensureSetup(op: string) {
+    // Prefer system caps: most precise.
+    this.sys?.ensureSetup(op);
+    // Fallback: proto-phase based (for adapters/tests that don't wire sys)
+    if (!this.sys && this.protoPhase !== "setup") {
+      throw illegalPhase(op, this.protoPhase, {
+        prototypeName: this.prototypeName,
+      });
+    }
+  }
+
+  private ensureRuntime(op: string) {
+    this.sys?.ensureRuntime(op);
+  }
+
   private makeToken(id: string): EventListenerToken {
-    // stable object; desc() is dev-only side effect
     const token: EventListenerToken = {
       id,
       [Symbol.for("__eventTokenBrand")]: "EventListenerToken",
       desc: (text: string) => {
-        // allow call chain in setup only
-        this.guardSetupOnly("def.event.token.desc");
+        this.ensureSetup("def.event.token.desc");
 
-        // TODO: remove this in production
         const __DEV__ = true;
         if (__DEV__) {
           if (typeof text === "string" && text.trim()) {
@@ -70,36 +93,39 @@ export class EventModuleImpl extends ModuleBase<EventCaps> {
         return token;
       },
     } as any;
-
     return token;
   }
 
-  on(
-    type: EventTypeV0,
-    cb: ProtoEventCallback<any>,
-    options?: any
-  ): EventListenerToken {
-    this.guardSetupOnly("def.event.on");
-    this.guardArgs(type, cb);
+  redirectRoot(target: EventTarget) {
+    this.ensureSetup("def.event.redirectRoot");
+    if (!isEventTargetLike(target)) {
+      throw illegalEventArg(
+        `[Event] redirectRoot() requires an EventTarget-like object.`,
+        {
+          prototypeName: this.prototypeName,
+          target,
+        }
+      );
+    }
+    this.overriddenRootTarget = target;
+  }
 
-    const id = this.kernel.on("root", type, cb, options);
+  on(type: EventTypeV0, options?: any): EventListenerToken {
+    this.ensureSetup("def.event.on");
+    this.guardArgs(type);
+    const id = this.kernel.on("root", type, options);
     return this.makeToken(id);
   }
 
-  onGlobal(
-    type: EventTypeV0,
-    cb: ProtoEventCallback<any>,
-    options?: any
-  ): EventListenerToken {
-    this.guardSetupOnly("def.event.onGlobal");
-    this.guardArgs(type, cb);
-
-    const id = this.kernel.on("global", type, cb, options);
+  onGlobal(type: EventTypeV0, options?: any): EventListenerToken {
+    this.ensureSetup("def.event.onGlobal");
+    this.guardArgs(type);
+    const id = this.kernel.on("global", type, options);
     return this.makeToken(id);
   }
 
   offToken(token: EventListenerToken) {
-    this.guardSetupOnly("def.event.offToken");
+    this.ensureSetup("def.event.offToken");
     const id = (token as any)?.id;
     if (typeof id !== "string" || !id) {
       throw illegalEventArg(`[Event] invalid token.`, {
@@ -110,39 +136,38 @@ export class EventModuleImpl extends ModuleBase<EventCaps> {
     this.kernel.offById(id);
   }
 
-  off(
-    type: EventTypeV0,
-    cb: ProtoEventCallback<any>,
-    options?: EventListenerOptions
-  ) {
-    this.guardSetupOnly("def.event.off");
-    this.guardArgs(type, cb);
-    this.kernel.off("root", type, cb, options);
-  }
-
-  offGlobal(
-    type: EventTypeV0,
-    cb: ProtoEventCallback<any>,
-    options?: EventListenerOptions
-  ) {
-    this.guardSetupOnly("def.event.offGlobal");
-    this.guardArgs(type, cb);
-    this.kernel.off("global", type, cb, options);
+  offLatest(kind: "root" | "global", type: EventTypeV0, options?: any) {
+    this.ensureSetup("def.event.offLatest");
+    if (kind !== "root" && kind !== "global") {
+      throw illegalEventArg(
+        `[Event] invalid kind for offLatest: ${String(kind)}`,
+        {
+          prototypeName: this.prototypeName,
+          kind,
+        }
+      );
+    }
+    this.guardArgs(type);
+    this.kernel.offLatest(kind, type, options);
   }
 
   // -------------------------
   // runtime port
   // -------------------------
 
-  bind(run: RunHandle<any>) {
+  bind(dispatch: EventDispatch) {
+    this.ensureRuntime("rt.event.bind");
+
     const needsRoot = this.kernel.hasAny("root");
     const needsGlobal = this.kernel.hasAny("global");
 
-    // ✅ v0 contract: no registrations => bind is a no-op
+    // v0 contract: no registrations => no-op (must not read targets)
     if (!needsRoot && !needsGlobal) return;
 
-    const root = this.caps.get("getRootTarget")?.();
-    if (!root) {
+    const root =
+      this.overriddenRootTarget ?? this.caps.get("getRootTarget")?.();
+
+    if (needsRoot && !root) {
       throw illegalEventTarget(
         `[Event] root target unavailable during bind().`,
         {
@@ -155,19 +180,20 @@ export class EventModuleImpl extends ModuleBase<EventCaps> {
     if (needsGlobal && !global) {
       throw illegalEventTarget(
         `[Event] global target unavailable during bind().`,
-        {
-          prototypeName: this.prototypeName,
-        }
+        { prototypeName: this.prototypeName }
       );
     }
 
-    this.lastRun = run;
+    this.lastDispatch = dispatch;
 
-    this.kernel.bindAll(run, (kind) => (kind === "root" ? root : global!));
+    this.kernel.bindAll(dispatch, (kind) =>
+      kind === "root" ? (root as EventTarget) : (global as EventTarget)
+    );
     this.isBound = true;
   }
 
   unbind() {
+    this.ensureRuntime("rt.event.unbind");
     this.kernel.unbindAll();
     this.isBound = false;
   }
@@ -184,50 +210,32 @@ export class EventModuleImpl extends ModuleBase<EventCaps> {
     super.onProtoPhase(phase);
 
     if (phase === "unmounted") {
-      // contract: auto cleanup on unmount
       this.kernel.cleanupAll();
-      this.lastRun = null;
+      this.lastDispatch = null;
       this.isBound = false;
+      this.overriddenRootTarget = null;
     }
   }
 
   protected override onCapsEpoch(_epoch: number): void {
-    // Targets might change. If already bound and we have a run handle,
+    // Targets might change. If already bound and we have a dispatch,
     // rebind immediately to avoid stale listeners.
     if (!this.isBound) return;
-    if (!this.lastRun) return;
+    if (!this.lastDispatch) return;
 
-    // Conservative strategy: unbind everything and bind again.
-    // (Keeps registrations, rebuilds wrappers per registration.)
     this.kernel.unbindAll();
     this.isBound = false;
 
-    // Rebind using new caps values.
-    this.bind(this.lastRun);
+    this.bind(this.lastDispatch);
   }
 
   // -------------------------
   // helpers
   // -------------------------
 
-  private guardSetupOnly(op: string) {
-    if (this.protoPhase !== "setup") {
-      throw illegalPhase(op, this.protoPhase, {
-        prototypeName: this.prototypeName,
-        hint: `Register listeners in setup only. Use runtime callbacks for behavior.`,
-      });
-    }
-  }
-
-  private guardArgs(type: EventTypeV0, cb: ProtoEventCallback<any>) {
+  private guardArgs(type: EventTypeV0) {
     if (!isValidEventType(type)) {
       throw illegalEventArg(`[Event] invalid event type: ${String(type)}`, {
-        prototypeName: this.prototypeName,
-        type,
-      });
-    }
-    if (typeof cb !== "function") {
-      throw illegalEventArg(`[Event] callback must be a function.`, {
         prototypeName: this.prototypeName,
         type,
       });
