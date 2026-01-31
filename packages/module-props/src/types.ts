@@ -1,64 +1,91 @@
 // packages/module-props/src/types.ts
-import type {
-  PropsDefaults,
-  PropsSnapshot,
-  PropsWatchCallback,
-  RawWatchCallback,
-  RunHandle,
-} from "@proto-ui/core";
-import type { ModuleInstance } from "@proto-ui/core";
 import type { PropsBaseType, PropsSpecMap } from "@proto-ui/types";
-import { PropsKernelDiag } from "./kernel";
+import type { PropsDefaults, PropsSnapshot, WatchInfo } from "@proto-ui/core";
+import type { ModuleInstance } from "@proto-ui/module-base";
 
 export type RawPropsSource<P extends PropsBaseType> = {
-  get(): Readonly<P & PropsBaseType>;
-  subscribe(cb: () => void): () => void;
   debugName?: string;
+  get(): Record<string, any>;
+  subscribe(cb: () => void): () => void;
 };
 
 export type PropsCaps<P extends PropsBaseType> = {
-  rawPropsSource: RawPropsSource<P>;
+  rawPropsSource?: RawPropsSource<P>;
 };
+
+export type PropsCallbackCtx = unknown;
+
+// Module-facing callbacks (do NOT reference RunHandle)
+export type PropsWatchCb<P extends PropsBaseType> = (
+  ctx: PropsCallbackCtx,
+  next: PropsSnapshot<P>,
+  prev: PropsSnapshot<P>,
+  info: WatchInfo<P>
+) => void;
+
+export type RawWatchCb<P extends PropsBaseType> = (
+  ctx: PropsCallbackCtx,
+  nextRaw: Readonly<P & PropsBaseType>,
+  prevRaw: Readonly<P & PropsBaseType>,
+  info: WatchInfo<P & PropsBaseType>
+) => void;
+
+export type PropsKernelDiag = {
+  level: "warning" | "error";
+  message: string;
+  key?: string;
+};
+
+export type PropsWatchTask<P extends PropsBaseType> =
+  | {
+      kind: "resolved";
+      cb: PropsWatchCb<P>;
+      next: PropsSnapshot<P>;
+      prev: PropsSnapshot<P>;
+      info: WatchInfo<P>;
+    }
+  | {
+      kind: "raw";
+      cb: RawWatchCb<P>;
+      next: Readonly<P & PropsBaseType>;
+      prev: Readonly<P & PropsBaseType>;
+      info: WatchInfo<P & PropsBaseType>;
+    };
 
 export type PropsFacade<P extends PropsBaseType> = {
-  // setup-only
-  define(decl: PropsSpecMap<P>): void;
-  setDefaults(partialDefaults: PropsDefaults<P>): void;
-  watch(keys: (keyof P & string)[], cb: PropsWatchCallback<P>): void;
-  watchAll(cb: PropsWatchCallback<P>): void;
-  watchRaw(
+  // setup-only (guarded in impl)
+  define: (decl: PropsSpecMap<P>) => void;
+  setDefaults: (partial: PropsDefaults<P>) => void;
+
+  // setup-only subscriptions (module-facing callbacks; ctx is unknown)
+  watch: (keys: (keyof P & string)[], cb: PropsWatchCb<P>) => void;
+  watchAll: (cb: PropsWatchCb<P>) => void;
+  watchRaw: (
     keys: (keyof P & string)[],
-    cb: RawWatchCallback<P & PropsBaseType>
-  ): void;
-  watchRawAll(cb: RawWatchCallback<P & PropsBaseType>): void;
+    cb: RawWatchCb<P & PropsBaseType>
+  ) => void;
+  watchRawAll: (cb: RawWatchCb<P & PropsBaseType>) => void;
 
-  // runtime/read
-  get(): PropsSnapshot<P>;
-  getRaw(): Readonly<P & PropsBaseType>;
-  isProvided(key: keyof P): boolean;
-};
-
-export type PropsModule<P extends PropsBaseType> = ModuleInstance<
-  PropsFacade<P>
-> & {
-  name: "props";
-  scope: "instance";
+  // runtime read API
+  get: () => PropsSnapshot<P>;
+  getRaw: () => Readonly<P & PropsBaseType>;
+  isProvided: (key: keyof P) => boolean;
 };
 
 export type PropsPort<P extends PropsBaseType> = {
-  /**
-   * Push raw directly (used by runtime controller.applyProps()).
-   * Must trigger watches (hydration rules still apply).
-   * Must NOT render.
-   */
-  applyRaw(nextRaw: Record<string, any>, run?: RunHandle<P>): void;
+  // internal sync points (NO run)
+  syncFromHost(): void;
+  applyRaw(nextRaw: Record<string, any>): void;
 
-  /**
-   * Pull from rawPropsSource if present and dirty.
-   * Used by runtime at safe points (before render / before callbacks).
-   */
-  syncFromHost(run?: RunHandle<P>): void;
+  // internal: runtime pulls tasks and dispatches with ctx=run
+  consumeTasks(): PropsWatchTask<P>[];
 
-  /** Optional: expose diags to runtime/devtools */
-  getDiagnostics?(): readonly PropsKernelDiag[];
+  getDiagnostics(): readonly PropsKernelDiag[];
 };
+
+export type PropsModule<P extends PropsBaseType> = ModuleInstance<
+  "props",
+  "instance",
+  PropsFacade<P>,
+  PropsPort<P>
+>;

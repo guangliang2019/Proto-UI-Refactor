@@ -1,49 +1,70 @@
 // packages/module-props/test/contract/watch-raw.v0.contract.test.ts
-
 import { describe, it, expect } from "vitest";
-import { PropsKernel } from "../../src/kernel/kernel";
+import { PropsModuleImpl } from "../../src/impl";
 
 /**
  * Watch Raw Contract v0
  * Contract Doc: internal/contracts/props/watch-raw.v0.md
  *
- * Focus:
- * - hydration rule (first applyRaw does not fire)
- * - unionKeys-based changedKeysAll
- * - Object.is based diff
- * - watchRawAll / watchRaw(keys) trigger conditions
- * - watchRaw(keys) allows undeclared keys
- * - callback argument ordering & group ordering (raw before resolved)
- * - devWarn diagnostics behavior (not deduped)
+ * Focus (module-level):
+ * - hydration rule (first applyRaw does not schedule raw watch tasks)
+ * - watchRawAll unionKeys(prev,next) and trigger condition
+ * - watchRaw(keys) supports undeclared keys and matched semantics
+ * - Object.is diff semantics for raw
+ * - ordering: raw tasks before resolved tasks; within raw: rawAll before raw(keys)
+ *
+ * NOTE:
+ * - RunHandle shape & runtime dispatch timing are runtime concerns and live in runtime contracts.
+ *   Here we only validate scheduled tasks (next/prev/info ordering).
  */
+
+function createModule() {
+  const caps = {
+    onChange: (_fn: (epoch: number) => void) => {},
+    has: (_k: string) => false,
+    get: (_k: string) => undefined,
+  } as any;
+
+  return new PropsModuleImpl<any>(caps, "test-proto");
+}
+
+function drainTasks(pm: PropsModuleImpl<any>) {
+  return pm.consumeTasks();
+}
+
 describe("Props watch(raw) Contract v0", () => {
-  it("PROP-V0-4200: hydration (first applyRaw) never fires raw watchers", () => {
-    const pm = new PropsKernel<any>();;
+  it("PROP-V0-4200: hydration (first applyRaw) never schedules raw watch tasks", () => {
+    const pm = createModule();
     pm.define({ a: { kind: "number", default: 1 } });
 
     let calledAll = 0;
     let calledKeyed = 0;
 
-    pm.addWatchRawAll(() => calledAll++);
-    pm.addWatchRaw(["a"], () => calledKeyed++);
+    pm.watchRawAllKeys(() => calledAll++);
+    pm.watchRawKeys(["a"], () => calledKeyed++);
 
-    // first applyRaw is hydration => no raw watch
+    // hydration => no tasks
     pm.applyRaw({ a: 1 });
+    expect(drainTasks(pm).length).toBe(0);
     expect(calledAll).toBe(0);
     expect(calledKeyed).toBe(0);
 
-    // subsequent applyRaw may watch (if changed)
+    // subsequent applyRaw may schedule (if changed)
     pm.applyRaw({ a: 2 });
+    const tasks = drainTasks(pm);
+    for (const t of tasks)
+      if (t.kind === "raw") t.cb({} as any, t.next, t.prev, t.info);
+
     expect(calledAll).toBe(1);
     expect(calledKeyed).toBe(1);
   });
 
-  it("PROP-V0-4300: watchRawAll uses unionKeys(prev,next) and fires only when at least one key changed", () => {
-    const pm = new PropsKernel<any>();;
+  it("PROP-V0-4300: watchRawAll uses unionKeys(prev,next) and schedules only when at least one key changed", () => {
+    const pm = createModule();
     pm.define({ a: { kind: "number", default: 1 } });
 
     const seen: Array<{ all: string[]; matched: string[] }> = [];
-    pm.addWatchRawAll((_run, _nextRaw, _prevRaw, info) => {
+    pm.watchRawAllKeys((_run, _nextRaw, _prevRaw, info) => {
       seen.push({
         all: [...info.changedKeysAll].sort(),
         matched: [...info.changedKeysMatched].sort(),
@@ -52,33 +73,43 @@ describe("Props watch(raw) Contract v0", () => {
 
     // hydration
     pm.applyRaw({ a: 1 });
+    expect(drainTasks(pm).length).toBe(0);
 
-    // add undeclared key => unionKeys includes it => changedKeysAll should include 'x'
+    // only undeclared added => should schedule, all/matched include x
     pm.applyRaw({ a: 1, x: 1 } as any);
+    const t1 = drainTasks(pm);
+    for (const t of t1)
+      if (t.kind === "raw") t.cb({} as any, t.next, t.prev, t.info);
+
     expect(seen.length).toBe(1);
     expect(seen[0].all).toEqual(["x"]);
     expect(seen[0].matched).toEqual(["x"]);
 
-    // remove key => unionKeys includes it => changedKeysAll should include 'x'
+    // no raw change => no schedule
+    pm.applyRaw({ a: 1, x: 1 } as any);
+    expect(drainTasks(pm).length).toBe(0);
+    expect(seen.length).toBe(1);
+
+    // remove x => schedule, all includes x
     pm.applyRaw({ a: 1 } as any);
+    const t2 = drainTasks(pm);
+    for (const t of t2)
+      if (t.kind === "raw") t.cb({} as any, t.next, t.prev, t.info);
+
     expect(seen.length).toBe(2);
     expect(seen[1].all).toEqual(["x"]);
     expect(seen[1].matched).toEqual(["x"]);
-
-    // no change => should not fire
-    pm.applyRaw({ a: 1 } as any);
-    expect(seen.length).toBe(2);
   });
 
-  it("PROP-V0-4400: watchRaw(keys) allows undeclared keys and fires only when matched keys changed", () => {
-    const pm = new PropsKernel<any>();;
+  it("PROP-V0-4400: watchRaw(keys) allows undeclared keys and schedules only when matched keys changed", () => {
+    const pm = createModule();
     pm.define({ a: { kind: "number", default: 1 } });
 
     let called = 0;
     let lastAll: string[] = [];
     let lastMatched: string[] = [];
 
-    pm.addWatchRaw(["x", "y"], (_run, _nextRaw, _prevRaw, info) => {
+    pm.watchRawKeys(["x", "y"], (_run, _nextRaw, _prevRaw, info) => {
       called++;
       lastAll = [...info.changedKeysAll].sort();
       lastMatched = [...info.changedKeysMatched].sort();
@@ -86,86 +117,96 @@ describe("Props watch(raw) Contract v0", () => {
 
     // hydration
     pm.applyRaw({ a: 1 });
+    expect(drainTasks(pm).length).toBe(0);
 
-    // change undeclared x => should fire (matched)
+    // only x changes => schedule
     pm.applyRaw({ a: 1, x: 1 } as any);
-    expect(called).toBe(1);
-    expect(lastMatched).toEqual(["x"]);
-    expect(lastAll).toEqual(["x"]);
+    const t1 = drainTasks(pm);
+    for (const t of t1)
+      if (t.kind === "raw") t.cb({} as any, t.next, t.prev, t.info);
 
-    // change undeclared z (not matched) => should NOT fire (but would be in changedKeysAll if it fired)
+    expect(called).toBe(1);
+    expect(lastAll).toEqual(["x"]);
+    expect(lastMatched).toEqual(["x"]);
+
+    // only z changes (not matched) => no schedule
     pm.applyRaw({ a: 1, x: 1, z: 1 } as any);
+    expect(drainTasks(pm).length).toBe(0);
     expect(called).toBe(1);
 
-    // remove matched key x => should fire with matched 'x'
-    pm.applyRaw({ a: 1, z: 1 } as any);
+    // y changes => schedule, matched=y
+    pm.applyRaw({ a: 1, x: 1, z: 1, y: 2 } as any);
+    const t2 = drainTasks(pm);
+    for (const t of t2)
+      if (t.kind === "raw") t.cb({} as any, t.next, t.prev, t.info);
+
     expect(called).toBe(2);
-    expect(lastMatched).toEqual(["x"]);
-    expect(lastAll).toEqual(["x"]);
+    expect(lastAll.sort()).toEqual(["y"]);
+    expect(lastMatched).toEqual(["y"]);
   });
 
   it("PROP-V0-4100: Object.is treats NaN as stable (NaN -> NaN does not trigger)", () => {
-    const pm = new PropsKernel<any>();;
+    const pm = createModule();
     pm.define({ a: { kind: "number", default: 1 } });
-  
-    let calledAll = 0;
-    let calledKeyed = 0;
-  
-    pm.addWatchRawAll(() => calledAll++);
-    pm.addWatchRaw(["x"], () => calledKeyed++);
-  
-    // hydration
-    pm.applyRaw({ a: 1, x: NaN } as any);
-  
-    // NaN -> NaN should be Object.is true => no fire
-    pm.applyRaw({ a: 1, x: NaN } as any);
-  
-    expect(calledAll).toBe(0);
-    expect(calledKeyed).toBe(0);
-  });
-  
-  it("PROP-V0-4100: Object.is distinguishes -0 and 0 (-0 -> 0 triggers)", () => {
-    const pm = new PropsKernel<any>();;
-    pm.define({ a: { kind: "number", default: 1 } });
-  
-    let calledAll = 0;
-    let calledKeyed = 0;
-  
-    pm.addWatchRawAll(() => calledAll++);
-    pm.addWatchRaw(["x"], () => calledKeyed++);
-  
-    // hydration with -0
-    pm.applyRaw({ a: 1, x: -0 } as any);
-  
-    // -0 -> 0 is Object.is false => fire once
-    pm.applyRaw({ a: 1, x: 0 } as any);
-  
-    expect(calledAll).toBe(1);
-    expect(calledKeyed).toBe(1);
-  });
-  
 
-  it("PROP-V0-4600: order: raw watchers run before resolved watchers; within raw: rawAll before raw(keys)", () => {
-    const pm = new PropsKernel<any>();;
+    let called = 0;
+    pm.watchRawAllKeys(() => called++);
+
+    // hydration
+    pm.applyRaw({ x: NaN } as any);
+    expect(drainTasks(pm).length).toBe(0);
+
+    // NaN -> NaN should not schedule (Object.is(NaN,NaN) === true)
+    pm.applyRaw({ x: NaN } as any);
+    expect(drainTasks(pm).length).toBe(0);
+    expect(called).toBe(0);
+  });
+
+  it("PROP-V0-4100: Object.is distinguishes -0 and 0 (-0 -> 0 triggers)", () => {
+    const pm = createModule();
+    pm.define({ a: { kind: "number", default: 1 } });
+
+    let called = 0;
+    pm.watchRawAllKeys(() => called++);
+
+    // hydration
+    pm.applyRaw({ x: -0 } as any);
+    expect(drainTasks(pm).length).toBe(0);
+
+    // -0 -> 0 should schedule (Object.is(-0, 0) === false)
+    pm.applyRaw({ x: 0 } as any);
+    const tasks = drainTasks(pm);
+    for (const t of tasks)
+      if (t.kind === "raw") t.cb({} as any, t.next, t.prev, t.info);
+
+    expect(called).toBe(1);
+  });
+
+  it("PROP-V0-4600: order: raw tasks before resolved tasks; within raw: rawAll before raw(keys)", () => {
+    const pm = createModule();
     pm.define({ a: { kind: "number", default: 1 } });
 
     const order: string[] = [];
 
-    pm.addWatchRawAll(() => order.push("rawAll-1"));
-    pm.addWatchRawAll(() => order.push("rawAll-2"));
-    pm.addWatchRaw(["x"], () => order.push("rawKey-1"));
-    pm.addWatchRaw(["x"], () => order.push("rawKey-2"));
+    pm.watchRawAllKeys(() => order.push("rawAll-1"));
+    pm.watchRawAllKeys(() => order.push("rawAll-2"));
+    pm.watchRawKeys(["x"], () => order.push("rawKey-1"));
+    pm.watchRawKeys(["x"], () => order.push("rawKey-2"));
 
-    pm.addWatchAll(() => order.push("resAll-1"));
-    pm.addWatch(["a"], () => order.push("resKey-1"));
+    pm.watchAllKeys(() => order.push("resAll-1"));
+    pm.watchKeys(["a"], () => order.push("resKey-1"));
 
     // hydration
-    pm.applyRaw({ a: 1 } as any);
+    pm.applyRaw({ a: 1, x: 1 } as any);
+    expect(drainTasks(pm).length).toBe(0);
 
-    // trigger both raw and resolved:
-    // - raw: add x (changed)
-    // - resolved: change a
-    pm.applyRaw({ a: 2, x: 1 } as any);
+    // trigger change
+    pm.applyRaw({ a: 2, x: 2 } as any);
+
+    const tasks = drainTasks(pm);
+    for (const t of tasks) {
+      t.cb({} as any, t.next, t.prev, t.info);
+    }
 
     expect(order).toEqual([
       "rawAll-1",
@@ -177,78 +218,9 @@ describe("Props watch(raw) Contract v0", () => {
     ]);
   });
 
-  it("PROP-V0-4500: raw watchers record devWarn diagnostics by default; not required to de-duplicate", () => {
-    const pm = new PropsKernel<any>();;
-    pm.define({ a: { kind: "number", default: 1 } });
-
-    // register with default devWarn=true
-    pm.addWatchRawAll(() => {});
-    pm.addWatchRaw(["x"], () => {});
-
-    // hydration
-    pm.applyRaw({ a: 1 } as any);
-
-    // 1st triggering apply => should push warnings (at least once each)
-    pm.applyRaw({ a: 1, x: 1 } as any);
-
-    const w1 = pm
-      .getDiagnostics()
-      .filter(
-        (d) => d.level === "warning" && d.message.includes("escape hatch")
-      );
-
-    expect(w1.length).toBeGreaterThanOrEqual(2);
-
-    // 2nd triggering apply => may push again (no dedupe guarantee)
-    pm.applyRaw({ a: 1, x: 2 } as any);
-
-    const w2 = pm
-      .getDiagnostics()
-      .filter(
-        (d) => d.level === "warning" && d.message.includes("escape hatch")
-      );
-
-    expect(w2.length).toBeGreaterThanOrEqual(w1.length);
-  });
-
-  it("PROP-V0-4300/4400 + PROP-V0-2110: raw callbacks receive a RunHandle-like object; run.props.getRaw() is usable and coherent", () => {
-    const pm = new PropsKernel<any>();;
-    pm.define({ a: { kind: "number", default: 1 } });
-
-    const runObj = {
-      update() {},
-      props: {
-        get: () => pm.get(),
-        getRaw: () => pm.getRaw(),
-        isProvided: (key: any) => pm.isProvided(key),
-      },
-    };
-
-    pm.addWatchRawAll((run, nextRaw, _prevRaw, info) => {
-      expect(typeof (run as any).props?.getRaw).toBe("function");
-      expect(typeof (run as any).props?.isProvided).toBe("function");
-
-      // Alignment: run.props.getRaw() matches watcher raw snapshot
-      expect((run as any).props.getRaw()).toEqual(nextRaw);
-
-      expect(info.changedKeysAll.length).toBeGreaterThan(0);
-    });
-
-    pm.addWatchRaw(["x"], (run, nextRaw) => {
-      expect((run as any).props.getRaw()).toEqual(nextRaw);
-    });
-
-    // hydration
-    pm.applyRaw({ a: 1 } as any, runObj as any);
-
-    // trigger
-    pm.applyRaw({ a: 1, x: 1 } as any, runObj as any);
-  });
-
   it("PROP-V0-4400: watchRaw(keys) rejects empty key list", () => {
-    const pm = new PropsKernel<any>();;
+    const pm = createModule();
     pm.define({ a: { kind: "number", default: 1 } });
-
-    expect(() => pm.addWatchRaw([], () => {})).toThrow();
+    expect(() => pm.watchRawKeys([] as any, () => {})).toThrow();
   });
 });

@@ -26,26 +26,27 @@ export function createPropsModule<P extends PropsBaseType>(
 
       return {
         facade: {
-          // setup-only (guarded in impl)
           define: (decl) => impl.define(decl),
           setDefaults: (partial) => impl.setDefaults(partial),
-          watch: (keys, cb) => impl.watch(keys, cb),
-          watchAll: (cb) => impl.watchAll(cb),
-          watchRaw: (keys, cb) => impl.watchRaw(keys, cb),
-          watchRawAll: (cb) => impl.watchRawAll(cb),
 
-          // runtime
+          watch: (keys, cb) => impl.watchKeys(keys as any, cb as any),
+          watchAll: (cb) => impl.watchAllKeys(cb as any),
+          watchRaw: (keys, cb) =>
+            impl.watchRawKeys(keys as any, cb as any, true),
+          watchRawAll: (cb) => impl.watchRawAllKeys(cb as any, true),
+
           get: () => impl.get(),
           getRaw: () => impl.getRaw(),
-          isProvided: (key) => impl.isProvided(key),
+          isProvided: (key) => impl.isProvided(key as any),
         },
         hooks: {
           onProtoPhase: (p) => impl.onProtoPhase(p),
         },
         port: {
-          syncFromHost: (run) => impl.syncFromHost(run),
+          syncFromHost: () => impl.syncFromHost(),
+          applyRaw: (nextRaw) => impl.applyRaw(nextRaw),
+          consumeTasks: () => impl.consumeTasks(),
           getDiagnostics: () => impl.getDiagnostics(),
-          applyRaw: (nextRaw, run) => impl.applyRaw(nextRaw, run),
         },
       };
     },

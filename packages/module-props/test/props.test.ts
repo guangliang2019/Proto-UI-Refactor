@@ -82,38 +82,6 @@ describe("@proto-ui/module-props PropsKernel (EmptyBehavior)", () => {
     expect((pm.get() as any).a).toBe(2);
   });
 
-  it("PROP-0031: watch(keys) only fires when matched keys changed", () => {
-    const pm = new PropsKernel<any>();
-    pm.define({
-      a: { kind: "number", default: 1 },
-      b: { kind: "number", default: 1 },
-    });
-
-    let called = 0;
-    pm.addWatch(["a", "b"], () => called++);
-
-    pm.applyRaw({ a: 1, b: 1, c: 0 });
-    pm.applyRaw({ a: 1, b: 1, c: 1 });
-
-    expect(called).toBe(0);
-
-    pm.applyRaw({ a: 2, b: 1, c: 1 });
-    expect(called).toBe(1);
-  });
-
-  it("PROP-0030: watchAll exists; watch(keys) requires non-empty", () => {
-    const pm = new PropsKernel<any>();
-    pm.define({ a: { kind: "number", default: 1 } });
-
-    expect(() => pm.addWatch([], () => {})).toThrow();
-
-    let called = 0;
-    pm.addWatchAll(() => called++);
-    pm.applyRaw({ a: 1 }); // hydration => no watches
-    pm.applyRaw({ a: 2 }); // now should fire
-    expect(called).toBe(1);
-  });
-
   it("PROP-0040: get returns readonly snapshot (shallow)", () => {
     const pm = new PropsKernel<any>();
     pm.define({ a: { kind: "number", default: 1 } });

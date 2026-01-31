@@ -41,6 +41,7 @@ export const createDefHandle = <P extends PropsBaseType>(
   const props = facades["props"] as PropsFacade<P>;
   const event = facades["event"] as EventFacade<P>;
   const state = facades["state"] as StateFacade;
+
   const ensureSetup = (op: string) => {
     const phase = st.getPhase();
     if (phase !== "setup") {
@@ -82,21 +83,31 @@ export const createDefHandle = <P extends PropsBaseType>(
         ensureSetup(`def.props.setDefaults`);
         props.setDefaults(partial);
       },
+
+      // Wrap user callback so module-props does NOT depend on RunHandle type.
       watch(keys, cb) {
         ensureSetup(`def.props.watch`);
-        props.watch(keys, cb as any);
+        props.watch(keys as any, (ctx, next, prev, info) =>
+          (cb as any)(ctx as RunHandle<P>, next, prev, info)
+        );
       },
       watchAll(cb) {
         ensureSetup(`def.props.watchAll`);
-        props.watchAll(cb as any);
+        props.watchAll((ctx, next, prev, info) =>
+          (cb as any)(ctx as RunHandle<P>, next, prev, info)
+        );
       },
       watchRaw(keys, cb) {
         ensureSetup(`def.props.watchRaw`);
-        props.watchRaw(keys, cb as any);
+        props.watchRaw(keys as any, (ctx, next, prev, info) =>
+          (cb as any)(ctx as RunHandle<P>, next, prev, info)
+        );
       },
       watchRawAll(cb) {
         ensureSetup(`def.props.watchRawAll`);
-        props.watchRawAll(cb as any);
+        props.watchRawAll((ctx, next, prev, info) =>
+          (cb as any)(ctx as RunHandle<P>, next, prev, info)
+        );
       },
     },
 

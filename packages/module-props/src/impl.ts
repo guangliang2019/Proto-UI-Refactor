@@ -2,43 +2,87 @@
 import type {
   PropsDefaults,
   PropsSnapshot,
-  PropsWatchCallback,
-  RawWatchCallback,
-  RunHandle,
+  WatchInfo,
+  ProtoPhase,
 } from "@proto-ui/core";
-import type { ProtoPhase } from "@proto-ui/core";
 import { illegalPhase } from "@proto-ui/core";
 
 import { ModuleBase } from "@proto-ui/module-base";
-import type { CapsVaultView } from "@proto-ui/module-base";
+import type { CapsVaultView, WithSystemCaps } from "@proto-ui/module-base";
 import type { PropsBaseType, PropsSpecMap } from "@proto-ui/types";
 
-import type { PropsCaps, RawPropsSource } from "./types";
-import { PropsKernel } from "./kernel/kernel";
+import type {
+  PropsCaps,
+  RawPropsSource,
+  PropsWatchCb,
+  RawWatchCb,
+  PropsWatchTask,
+} from "./types";
+import { PropsKernel, type PropsChangeReport } from "./kernel/kernel";
+
+function objectIs(a: any, b: any) {
+  return Object.is(a, b);
+}
+
+function diffKeys(
+  prev: Record<string, any>,
+  next: Record<string, any>,
+  keys: string[]
+) {
+  const changed: string[] = [];
+  for (const k of keys) {
+    if (!objectIs((prev as any)[k], (next as any)[k])) changed.push(k);
+  }
+  return changed;
+}
 
 /**
- * Props module impl: owns PropsKernel + wires RawPropsSource.
- *
- * Design:
- * - Kernel is pure + reusable.
- * - ModuleImpl handles phase guard + caps subscription + safe syncing.
- * - No auto-update / no host ops here.
+ * Props module impl:
+ * - Kernel is pure + reusable (no watchers, no run).
+ * - Impl owns subscriptions + pending change report -> watch tasks.
+ * - Runtime dispatches tasks with ctx=run at callback-safe points.
  */
 export class PropsModuleImpl<P extends PropsBaseType> extends ModuleBase<
   PropsCaps<P>
 > {
   private readonly kernel = new PropsKernel<P>();
 
-  private rawDirty = true; // first sync should always run (hydration)
+  private rawDirty = true;
   private subscribed = false;
 
-  private unsubRaw: null | (() => void) = null;
-  private lastSource: RawPropsSource<P> | null = null;
+  private unsubRaw: (() => void) | undefined;
+  private lastSource: RawPropsSource<P> | undefined;
 
-  // For better error context
   private readonly prototypeName: string;
 
-  constructor(caps: CapsVaultView<PropsCaps<P>>, prototypeName: string) {
+  private readonly declaredKeys: Set<string> = new Set();
+
+  // watchers (setup-only registration)
+  private watch: Array<{ keys: string[]; cb: PropsWatchCb<P> }> = [];
+  private watchAll: Array<{ cb: PropsWatchCb<P> }> = [];
+  private watchRaw: Array<{
+    keys: string[];
+    cb: RawWatchCb<P & PropsBaseType>;
+    devWarn?: boolean;
+  }> = [];
+  private watchRawAll: Array<{
+    cb: RawWatchCb<P & PropsBaseType>;
+    devWarn?: boolean;
+  }> = [];
+
+  // pending change report (last-wins; keep first prev)
+  // NOTE: do NOT name it "pending" — ModuleBase has its own pending queue.
+  private pendingReport: {
+    prevRaw: Readonly<P & PropsBaseType>;
+    prevResolved: PropsSnapshot<P>;
+    nextRaw: Readonly<P & PropsBaseType>;
+    nextResolved: PropsSnapshot<P>;
+  } | null = null;
+
+  constructor(
+    caps: CapsVaultView<PropsCaps<P> & WithSystemCaps>,
+    prototypeName: string
+  ) {
     super(caps);
     this.prototypeName = prototypeName;
   }
@@ -50,6 +94,9 @@ export class PropsModuleImpl<P extends PropsBaseType> extends ModuleBase<
   define(decl: PropsSpecMap<P>): void {
     this.guardSetupOnly("def.props.define");
     this.kernel.define(decl);
+
+    // keep declared keys in impl for watch validation (impl concern)
+    for (const k of Object.keys(decl as any)) this.declaredKeys.add(k);
   }
 
   setDefaults(partialDefaults: PropsDefaults<P>): void {
@@ -57,28 +104,55 @@ export class PropsModuleImpl<P extends PropsBaseType> extends ModuleBase<
     this.kernel.setDefaults(partialDefaults);
   }
 
-  watch(keys: (keyof P & string)[], cb: PropsWatchCallback<P>): void {
+  watchKeys(keys: (keyof P & string)[], cb: PropsWatchCb<P>): void {
     this.guardSetupOnly("def.props.watch");
-    this.kernel.addWatch(keys, cb);
+    if (!Array.isArray(keys) || keys.length === 0) {
+      throw new Error(
+        `[Props] watch(keys) requires non-empty declared keys. Use watchAll() instead.`
+      );
+    }
+
+    // If we haven't seen any define() yet, refusing is safer than silently accepting.
+    // This keeps the contract strict and avoids delayed runtime surprises.
+    if (this.declaredKeys.size === 0) {
+      throw new Error(
+        `[Props] watch(keys) requires props to be declared first (define()).`
+      );
+    }
+
+    for (const k of keys as any as string[]) {
+      if (!this.declaredKeys.has(k)) {
+        throw new Error(
+          `[Props] watch(keys) only allows declared keys. Undeclared: ${k}`
+        );
+      }
+    }
+
+    this.watch.push({ keys: [...(keys as any)], cb });
   }
 
-  watchAll(cb: PropsWatchCallback<P>): void {
+  watchAllKeys(cb: PropsWatchCb<P>): void {
     this.guardSetupOnly("def.props.watchAll");
-    this.kernel.addWatchAll(cb);
+    this.watchAll.push({ cb });
   }
 
-  watchRaw(
+  watchRawKeys(
     keys: (keyof P & string)[],
-    cb: RawWatchCallback<P & PropsBaseType>
+    cb: RawWatchCb<P & PropsBaseType>,
+    devWarn = true
   ): void {
     this.guardSetupOnly("def.props.watchRaw");
-    // kernel expects string[] for raw watch; keep declared keys type here
-    this.kernel.addWatchRaw(keys as any, cb as any, true);
+    if (!Array.isArray(keys) || keys.length === 0) {
+      throw new Error(
+        `[Props] watchRaw(keys) requires non-empty keys. Use watchRawAll() instead.`
+      );
+    }
+    this.watchRaw.push({ keys: [...(keys as any)], cb, devWarn });
   }
 
-  watchRawAll(cb: RawWatchCallback<P & PropsBaseType>): void {
+  watchRawAllKeys(cb: RawWatchCb<P & PropsBaseType>, devWarn = true): void {
     this.guardSetupOnly("def.props.watchRawAll");
-    this.kernel.addWatchRawAll(cb as any, true);
+    this.watchRawAll.push({ cb, devWarn });
   }
 
   // -------------------------
@@ -98,40 +172,130 @@ export class PropsModuleImpl<P extends PropsBaseType> extends ModuleBase<
   }
 
   // -------------------------
-  // internal sync point
+  // internal sync point (NO run)
   // -------------------------
 
-  /**
-   * Pull latest raw from host and apply to kernel.
-   * This is intentionally "pull" to keep module weak.
-   */
-  syncFromHost(run?: RunHandle<P>): void {
-    // Always ensure subscription state is correct.
-    // (Also handles the case where rawPropsSource identity changes.)
+  syncFromHost(): void {
     this.ensureRawPropsSubscription();
 
     if (!this.caps.has("rawPropsSource")) return;
-
-    // If source object changed but caps epoch didn't (rare), force dirty.
     const src = this.caps.get("rawPropsSource");
-    if (this.lastSource !== src) {
-      // ensureRawPropsSubscription() should have updated lastSource,
-      // but keep this for extra safety in case of unusual ordering.
-      this.rawDirty = true;
-    }
+    if (!src) return;
 
+    if (this.lastSource !== src) this.rawDirty = true;
     if (!this.rawDirty) return;
 
     const raw = src.get();
-    this.kernel.applyRaw(raw as any, run as any);
+    this.applyRaw(raw);
 
     this.rawDirty = false;
   }
 
-  applyRaw(nextRaw: Record<string, any>, run?: RunHandle<P>): void {
-    // push 路径：认为这是“最新 raw”，所以直接清 dirty
-    this.kernel.applyRaw({ ...(nextRaw ?? {}) } as any, run as any);
+  applyRaw(nextRaw: Record<string, any>): void {
+    const { report } = this.kernel.applyRaw({ ...(nextRaw ?? {}) } as any);
+    if (report) this.mergePending(report);
     this.rawDirty = false;
+  }
+
+  consumeTasks(): PropsWatchTask<P>[] {
+    const p = this.pendingReport;
+    if (!p) return [];
+
+    // clear pending first (avoid reentrancy weirdness)
+    this.pendingReport = null;
+
+    const tasks: PropsWatchTask<P>[] = [];
+
+    const prevResolved = p.prevResolved;
+    const nextResolved = p.nextResolved;
+    const prevRaw = p.prevRaw;
+    const nextRaw = p.nextRaw;
+
+    // resolved all-changes based on declared keys
+    const declKeys = Object.keys(nextResolved as any);
+    const changedAllResolved = diffKeys(
+      prevResolved as any,
+      nextResolved as any,
+      declKeys
+    );
+
+    // raw all-changes based on union keys
+    const unionKeys = Array.from(
+      new Set([...Object.keys(prevRaw as any), ...Object.keys(nextRaw as any)])
+    );
+    const changedAllRaw = diffKeys(prevRaw as any, nextRaw as any, unionKeys);
+
+    // raw watchers: rawAll first, then keyed (registration order preserved within group)
+    for (const w of this.watchRawAll) {
+      if (changedAllRaw.length === 0) continue;
+      const info: WatchInfo<P & PropsBaseType> = {
+        changedKeysAll: changedAllRaw as any,
+        changedKeysMatched: changedAllRaw as any,
+      };
+      tasks.push({
+        kind: "raw",
+        cb: w.cb as any,
+        next: nextRaw as any,
+        prev: prevRaw as any,
+        info: info as any,
+      });
+    }
+
+    for (const w of this.watchRaw) {
+      if (changedAllRaw.length === 0) continue;
+      const matched = diffKeys(prevRaw as any, nextRaw as any, w.keys);
+      if (matched.length === 0) continue;
+      const info: WatchInfo<P & PropsBaseType> = {
+        changedKeysAll: changedAllRaw as any,
+        changedKeysMatched: matched as any,
+      };
+      tasks.push({
+        kind: "raw",
+        cb: w.cb as any,
+        next: nextRaw as any,
+        prev: prevRaw as any,
+        info: info as any,
+      });
+    }
+
+    // resolved watchers: all first, then keyed (registration order preserved within group)
+    for (const w of this.watchAll) {
+      if (changedAllResolved.length === 0) continue;
+      const info: WatchInfo<P> = {
+        changedKeysAll: changedAllResolved as any,
+        changedKeysMatched: changedAllResolved as any,
+      };
+      tasks.push({
+        kind: "resolved",
+        cb: w.cb as any,
+        next: nextResolved as any,
+        prev: prevResolved as any,
+        info: info as any,
+      });
+    }
+
+    for (const w of this.watch) {
+      if (changedAllResolved.length === 0) continue;
+      const matched = diffKeys(
+        prevResolved as any,
+        nextResolved as any,
+        w.keys
+      );
+      if (matched.length === 0) continue;
+      const info: WatchInfo<P> = {
+        changedKeysAll: changedAllResolved as any,
+        changedKeysMatched: matched as any,
+      };
+      tasks.push({
+        kind: "resolved",
+        cb: w.cb as any,
+        next: nextResolved as any,
+        prev: prevResolved as any,
+        info: info as any,
+      });
+    }
+
+    return tasks;
   }
 
   getDiagnostics() {
@@ -146,27 +310,24 @@ export class PropsModuleImpl<P extends PropsBaseType> extends ModuleBase<
     super.onProtoPhase(phase);
 
     if (phase === "unmounted") {
-      // Ensure we always tear down subscriptions even if runtime doesn't call an explicit dispose hook.
       this.dispose();
     }
   }
 
   protected override onCapsEpoch(_epoch: number): void {
-    // caps changed => we might need to (re)subscribe
     this.ensureRawPropsSubscription();
-    // changing caps is also a reason to consider raw dirty
     this.rawDirty = true;
   }
 
   dispose(): void {
     this.unsubRaw?.();
-    this.unsubRaw = null;
+    this.unsubRaw = undefined;
     this.subscribed = false;
-    this.lastSource = null;
+    this.lastSource = undefined;
 
     this.rawDirty = true;
+    this.pendingReport = null;
 
-    // kernel lifecycle reset (optional)
     this.kernel.dispose?.();
   }
 
@@ -183,37 +344,58 @@ export class PropsModuleImpl<P extends PropsBaseType> extends ModuleBase<
     }
   }
 
+  private mergePending(r: PropsChangeReport<P>): void {
+    if (!this.pendingReport) {
+      this.pendingReport = {
+        prevRaw: r.prevRaw,
+        prevResolved: r.prevResolved,
+        nextRaw: r.nextRaw,
+        nextResolved: r.nextResolved,
+      };
+      return;
+    }
+    // last-wins next; keep first prev in this flush window
+    this.pendingReport.nextRaw = r.nextRaw;
+    this.pendingReport.nextResolved = r.nextResolved;
+  }
+
   private ensureRawPropsSubscription(): void {
     const has = this.caps.has("rawPropsSource");
 
-    // lost capability => unsubscribe
     if (!has) {
       if (this.unsubRaw) {
         this.unsubRaw();
-        this.unsubRaw = null;
+        this.unsubRaw = undefined;
       }
       this.subscribed = false;
-      this.lastSource = null;
+      this.lastSource = undefined;
       return;
     }
 
     const src = this.caps.get("rawPropsSource");
+    if (!src) {
+      // defensive: caps may report presence but value may still be undefined
+      if (this.unsubRaw) {
+        this.unsubRaw();
+        this.unsubRaw = undefined;
+      }
+      this.subscribed = false;
+      this.lastSource = undefined;
+      return;
+    }
 
-    // same source and already subscribed
     if (this.subscribed && this.lastSource === src) return;
 
-    // source replaced => resub
     if (this.unsubRaw) {
       this.unsubRaw();
-      this.unsubRaw = null;
+      this.unsubRaw = undefined;
     }
 
     this.lastSource = src;
     this.subscribed = true;
 
     this.unsubRaw = src.subscribe(() => {
-      // NOTE: we do NOT call syncFromHost() here because we don't have `run`.
-      // Runtime should call syncFromHost(run) at safe points.
+      // only mark dirty; runtime decides when to sync + dispatch
       this.rawDirty = true;
     });
   }

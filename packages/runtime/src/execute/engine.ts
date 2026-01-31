@@ -23,38 +23,30 @@ import {
   createPropsModule,
   type PropsFacade,
   type PropsPort,
+  type PropsWatchTask,
 } from "@proto-ui/module-props";
 
-// NOTE: adjust import to match your actual timeline location/types.
-// The engine does NOT create timeline; it only consumes an injected instance.
 import { RuntimeTimeline } from "./timeline";
 import { createEventModule } from "@proto-ui/module-event";
 import { createStateModule } from "@proto-ui/module-state";
 import { ExecPhase } from "@proto-ui/module-base";
 
 export type Engine<P extends PropsBaseType> = {
-  // state
   getPhase(): Phase;
   setPhase(p: Phase): void;
 
-  // runtime resources
   lifecycle: LifecycleRegistry<P>;
   rules: RuleRegistry;
-
-  // modules
   moduleHub: ModuleHub;
 
-  // handles & renderer
   run: RunHandle<P>;
   read: RenderReadHandle<P>;
   renderer: RendererHandle<P>;
   renderFn: RenderFn;
 
-  // helpers
   renderOnce(): TemplateChildren;
   invoke(kind: keyof LifecycleRegistry<P>): void;
 
-  // lifecycle timeline (host executor injects)
   setTimeline(cp: RuntimeTimeline | null): void;
 };
 
@@ -63,9 +55,6 @@ export function createEngine<P extends PropsBaseType>(
   opt?: { allowRunUpdate?: boolean }
 ): Engine<P> {
   let phase: ExecPhase = "unknown";
-
-  // --- timeline (injected) ---
-  // Engine does not own time; it only marks checkpoints when appropriate.
   let timeline: RuntimeTimeline | null = null;
 
   const st = {
@@ -88,13 +77,11 @@ export function createEngine<P extends PropsBaseType>(
 
   const def = createDefHandle<P>(st, lifecycle, rules, moduleHub);
 
-  // setup
   phase = "setup";
   const maybeRender = proto.setup(def);
   const renderFn: RenderFn = maybeRender ?? ((renderer) => [renderer.r.slot()]);
   phase = "unknown";
 
-  // controller is host-level concept; in pure engine run.update is gated
   let runUpdateImpl: (() => void) | undefined = undefined;
   if (opt?.allowRunUpdate) {
     runUpdateImpl = () => {
@@ -111,19 +98,28 @@ export function createEngine<P extends PropsBaseType>(
     runUpdateImpl();
   }, moduleHub);
 
-  // props facade for read handle
   const facades = moduleHub.getFacades();
   const propsFacade = facades["props"] as PropsFacade<P>;
 
   const read: RenderReadHandle<P> = {
-    props: propsFacade as any, // RenderReadHandle expects RunHandle["props"]-shape
+    props: propsFacade as any,
   };
 
   const { el, r } = createRendererPrimitives();
   const renderer: RendererHandle<P> = { el, r, read };
 
+  const dispatchPropsTasks = () => {
+    const propsPort = moduleHub.getPort<PropsPort<P>>("props");
+    const tasks = propsPort?.consumeTasks() ?? [];
+    for (const t of tasks as PropsWatchTask<P>[]) {
+      // ctx is run; module does not know what ctx is
+      if (t.kind === "resolved")
+        t.cb(run as any, t.next as any, t.prev as any, t.info as any);
+      else t.cb(run as any, t.next as any, t.prev as any, t.info as any);
+    }
+  };
+
   const renderOnce = () => {
-    // before render, pull latest raw if host has any dirty changes
     const propsPort = moduleHub.getPort<PropsPort<P>>("props");
     propsPort?.syncFromHost();
 
@@ -131,10 +127,7 @@ export function createEngine<P extends PropsBaseType>(
     const children = renderFn(renderer);
     phase = "unknown";
 
-    // CP2: tree:logical-ready
-    // The canonical timeline is owned by the host executor; engine only marks.
     timeline?.mark("tree:logical-ready");
-
     return children;
   };
 
@@ -143,20 +136,13 @@ export function createEngine<P extends PropsBaseType>(
 
     phase = "callback";
 
-    // before callbacks, pull latest raw so watches can run on “no update” paths
-    propsPort?.syncFromHost(run);
+    // before callbacks, pull latest raw then dispatch watches
+    propsPort?.syncFromHost();
+    dispatchPropsTasks();
 
     for (const cb of lifecycle[kind]) cb(run);
 
     phase = "unknown";
-
-    if (kind === "unmounted") {
-      // NOTE:
-      // v0 contract moved moduleHub disposal responsibility to the host executor,
-      // because unmounted callbacks must run while moduleHub is alive.
-      // Therefore engine must NOT dispose here.
-      // (No-op)
-    }
   };
 
   return {
@@ -173,7 +159,6 @@ export function createEngine<P extends PropsBaseType>(
     renderFn,
     renderOnce,
     invoke,
-
     setTimeline: (t) => {
       timeline = t;
     },

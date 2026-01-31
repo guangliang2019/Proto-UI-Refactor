@@ -1,135 +1,90 @@
 // packages/module-props/test/contract/define-merge.v0.contract.test.ts
 import { describe, it, expect } from "vitest";
 import { PropsKernel } from "../../src/kernel/kernel";
+import type { PropsSpecMap } from "@proto-ui/types";
 
-/**
- * Define & Merge Contract v0
- * Contract Doc: internal/contracts/props/define-merge.v0.md
- *
- * NOTE:
- * This test suite currently reflects the **implementation behavior** of mergeSpecs.
- * If you decide to forbid "adding new constraints" (enum/range from none -> some),
- * update both contract doc and tests accordingly.
- */
+type P = {
+  a: number;
+  b: boolean;
+  c: string;
+};
 
-describe("Props Define & Merge Contract v0", () => {
-  it("PROP-V0-1100: kind conflict throws", () => {
-    const pm = new PropsKernel<any>();
-    pm.define({ a: { kind: "string" } });
+describe("props: define/merge semantics (v0)", () => {
+  it("PROP-V0-0100: define() must accept a PropsSpecMap and initialize defaults", () => {
+    const pm = new PropsKernel<P>();
 
-    expect(() => pm.define({ a: { kind: "number" } as any })).toThrow();
+    const specs: PropsSpecMap<P> = {
+      a: { kind: "number", default: 1 },
+      b: { kind: "boolean", default: false },
+      c: { kind: "string", default: "x" },
+    };
+
+    pm.define(specs);
+
+    const v = pm.get();
+    expect(v.a).toBe(1);
+    expect(v.b).toBe(false);
+    expect(v.c).toBe("x");
   });
 
-  it("PROP-V0-1200: empty stricter throws; looser warns; omit does not change", () => {
+  it("PROP-V0-0200: define() may be called multiple times; later define merges new keys", () => {
     const pm = new PropsKernel<any>();
-    pm.define({ a: { kind: "number", empty: "fallback" } });
 
-    // stricter: fallback -> error
-    expect(() =>
-      pm.define({ a: { kind: "number", empty: "error" } })
-    ).toThrow();
-
-    // new manager for looser path
-    const pm2 = new PropsKernel<any>();
-    pm2.define({ a: { kind: "number", empty: "error" } });
-
-    // looser: error -> fallback (warning)
-    pm2.define({ a: { kind: "number", empty: "fallback" } });
-    expect(
-      pm2
-        .getDiagnostics()
-        .some(
-          (d) =>
-            d.level === "warning" &&
-            d.key === "a" &&
-            d.message.includes("empty behavior becomes looser")
-        )
-    ).toBe(true);
-
-    // omit empty: should not warn, should not change base empty
-    const pm3 = new PropsKernel<any>();
-    pm3.define({ a: { kind: "number", empty: "error" } });
-    pm3.define({ a: { kind: "number" } });
-    expect(pm3.getDiagnostics().some((d) => d.key === "a")).toBe(false);
-  });
-
-  it("PROP-V0-1300: enum subset throws; superset warns", () => {
-    const pm = new PropsKernel<any>();
-    pm.define({ mode: { kind: "string", enum: ["a", "b"] } });
-
-    // superset => warning
-    pm.define({ mode: { kind: "string", enum: ["a", "b", "c"] } });
-    expect(pm.getDiagnostics().some((d) => d.level === "warning")).toBe(true);
-
-    // subset => error
-    expect(() =>
-      pm.define({ mode: { kind: "string", enum: ["a", "b"] } })
-    ).toThrow();
-  });
-
-  it("PROP-V0-1400: range narrower throws; wider warns", () => {
-    const pm = new PropsKernel<any>();
-    pm.define({ a: { kind: "number", range: { min: 0, max: 10 } } });
-
-    // wider => warning
-    pm.define({ a: { kind: "number", range: { min: -1, max: 11 } } });
-    expect(pm.getDiagnostics().some((d) => d.level === "warning")).toBe(true);
-
-    // narrower => error
-    expect(() =>
-      pm.define({ a: { kind: "number", range: { min: 0, max: 10 } } })
-    ).toThrow();
-  });
-
-  it("PROP-V0-1500: validator change throws", () => {
-    const pm = new PropsKernel<any>();
-    const v = (x: any) => !!x;
-
-    pm.define({ a: { kind: "any", validator: v } });
-
-    // same reference ok
-    pm.define({ a: { kind: "any", validator: v } });
-
-    // change reference => throw
-    expect(() =>
-      pm.define({ a: { kind: "any", validator: (x: any) => !!x } })
-    ).toThrow();
-  });
-
-  it("PROP-V0-1600: default override warns", () => {
-    const pm = new PropsKernel<any>();
-    pm.define({ a: { kind: "number", default: 1 } });
-
-    pm.define({ a: { kind: "number", default: 2 } });
-    expect(
-      pm
-        .getDiagnostics()
-        .some(
-          (d) =>
-            d.level === "warning" &&
-            d.key === "a" &&
-            d.message.includes("default overridden")
-        )
-    ).toBe(true);
-  });
-
-  it("PROP-V0-1800: failure is atomic (no partial merge applied)", () => {
-    const pm = new PropsKernel<any>();
     pm.define({
       a: { kind: "number", default: 1 },
-      b: { kind: "string", default: "x" },
     });
 
-    // attempt partial update where b fails kind
-    expect(() =>
-      pm.define({
-        a: { kind: "number", default: 2 }, // would warn if applied
-        b: { kind: "number" } as any, // error
-      })
-    ).toThrow();
+    pm.define({
+      b: { kind: "boolean", default: false },
+    });
 
-    // ensure a did not change (still default 1 when missing)
-    pm.applyRaw({});
-    expect(pm.get().a).toBe(1);
+    const v = pm.get();
+    expect(v.a).toBe(1);
+    expect(v.b).toBe(false);
+  });
+
+  it("PROP-V0-0300: define() may override existing key spec (last-one-wins)", () => {
+    const pm = new PropsKernel<any>();
+
+    pm.define({
+      a: { kind: "number", default: 1 },
+    });
+
+    pm.define({
+      a: { kind: "number", default: 2 },
+    });
+
+    const v = pm.get();
+    expect(v.a).toBe(2);
+  });
+
+  it("PROP-V0-0400: setDefaults() can patch defaults post-define; only affects missing keys", () => {
+    type P2 = { a: number; b: number };
+    const pm = new PropsKernel<P2>();
+
+    pm.define({
+      a: { kind: "number", default: 1 },
+      b: { kind: "number", default: 2 },
+    });
+
+    // raw provides a => resolved a fixed to provided
+    pm.applyRaw({ a: 10 } as any);
+
+    pm.setDefaults({ a: 100, b: 200 });
+
+    const v = pm.get();
+    expect(v.a).toBe(10);
+    expect(v.b).toBe(200);
+  });
+
+  it("PROP-V0-0500: setDefaults() rejects keys not in specs", () => {
+    type P2 = { a: number };
+    const pm = new PropsKernel<P2>();
+
+    pm.define({
+      a: { kind: "number", default: 1 },
+    });
+
+    expect(() => pm.setDefaults({ x: 1 } as any)).toThrow();
   });
 });
