@@ -4,22 +4,21 @@ import type {
   PropsSnapshot,
   WatchInfo,
   ProtoPhase,
+  CapsVaultView,
 } from "@proto-ui/core";
 import { illegalPhase } from "@proto-ui/core";
 
 import { ModuleBase } from "@proto-ui/module-base";
-import type { CapsVaultView, WithSystemCaps } from "@proto-ui/module-base";
 import type { PropsBaseType, PropsSpecMap } from "@proto-ui/types";
 
 import type {
-  PropsCaps,
   RawPropsSource,
   PropsWatchCb,
   RawWatchCb,
   PropsWatchTask,
 } from "./types";
+import { RAW_PROPS_SOURCE_CAP } from "./caps";
 import { PropsKernel, type PropsChangeReport } from "./kernel/kernel";
-
 function objectIs(a: any, b: any) {
   return Object.is(a, b);
 }
@@ -42,9 +41,7 @@ function diffKeys(
  * - Impl owns subscriptions + pending change report -> watch tasks.
  * - Runtime dispatches tasks with ctx=run at callback-safe points.
  */
-export class PropsModuleImpl<P extends PropsBaseType> extends ModuleBase<
-  PropsCaps<P>
-> {
+export class PropsModuleImpl<P extends PropsBaseType> extends ModuleBase {
   private readonly kernel = new PropsKernel<P>();
 
   private rawDirty = true;
@@ -79,10 +76,7 @@ export class PropsModuleImpl<P extends PropsBaseType> extends ModuleBase<
     nextResolved: PropsSnapshot<P>;
   } | null = null;
 
-  constructor(
-    caps: CapsVaultView<PropsCaps<P> & WithSystemCaps>,
-    prototypeName: string
-  ) {
+  constructor(caps: CapsVaultView, prototypeName: string) {
     super(caps);
     this.prototypeName = prototypeName;
   }
@@ -178,8 +172,11 @@ export class PropsModuleImpl<P extends PropsBaseType> extends ModuleBase<
   syncFromHost(): void {
     this.ensureRawPropsSubscription();
 
-    if (!this.caps.has("rawPropsSource")) return;
-    const src = this.caps.get("rawPropsSource");
+    if (!this.caps.has(RAW_PROPS_SOURCE_CAP)) return;
+
+    const src = this.caps.get(
+      RAW_PROPS_SOURCE_CAP
+    ) as unknown as RawPropsSource<P>;
     if (!src) return;
 
     if (this.lastSource !== src) this.rawDirty = true;
@@ -360,7 +357,7 @@ export class PropsModuleImpl<P extends PropsBaseType> extends ModuleBase<
   }
 
   private ensureRawPropsSubscription(): void {
-    const has = this.caps.has("rawPropsSource");
+    const has = this.caps.has(RAW_PROPS_SOURCE_CAP);
 
     if (!has) {
       if (this.unsubRaw) {
@@ -372,9 +369,10 @@ export class PropsModuleImpl<P extends PropsBaseType> extends ModuleBase<
       return;
     }
 
-    const src = this.caps.get("rawPropsSource");
+    const src = this.caps.get(
+      RAW_PROPS_SOURCE_CAP
+    ) as unknown as RawPropsSource<P>;
     if (!src) {
-      // defensive: caps may report presence but value may still be undefined
       if (this.unsubRaw) {
         this.unsubRaw();
         this.unsubRaw = undefined;
@@ -395,7 +393,6 @@ export class PropsModuleImpl<P extends PropsBaseType> extends ModuleBase<
     this.subscribed = true;
 
     this.unsubRaw = src.subscribe(() => {
-      // only mark dirty; runtime decides when to sync + dispatch
       this.rawDirty = true;
     });
   }

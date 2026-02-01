@@ -13,9 +13,6 @@ export type RawPropsSource<P extends PropsBaseType> = {
   subscribe(cb: () => void): () => void;
 };
 
-export type PropsCaps<P extends PropsBaseType> = {
-  rawPropsSource?: RawPropsSource<P>;
-};
 
 export type PropsCallbackCtx = unknown;
 

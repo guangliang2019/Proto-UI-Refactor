@@ -1,3 +1,4 @@
+// packages/core/src/index.ts
 export * from "./handles";
 export * from "./prototype";
 
@@ -8,3 +9,5 @@ export * from "./module";
 export * from "./errors";
 
 export * from "./state";
+
+export * from "./caps";

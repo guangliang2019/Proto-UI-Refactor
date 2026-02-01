@@ -1,18 +1,5 @@
-import type { StyleHandle } from "@proto-ui/core";
-import type { EffectsPort } from "@proto-ui/core";
-import type {
-  ModuleFacade,
-  ModuleHooks,
-  ModuleInit,
-  ModuleInstance,
-  ModuleScope,
-  ProtoPhase,
-} from "@proto-ui/core";
-import type { CapsVaultView } from "@proto-ui/module-base";
-
-export type FeedbackCaps = {
-  effects: EffectsPort;
-};
+import type { StyleHandle, ModuleInstance } from "@proto-ui/core";
+import type { ModuleFacade, ModuleHooks, ModuleScope } from "@proto-ui/core";
 
 export interface FeedbackFacade extends ModuleFacade {
   style: {
@@ -24,22 +11,22 @@ export interface FeedbackFacade extends ModuleFacade {
   };
 }
 
-export interface FeedbackInternal extends ModuleHooks {
-  onProtoPhase(phase: ProtoPhase): void;
-
+/**
+ * Optional internal hooks (runtime-facing).
+ * If你不想暴露这些，就把它们留在实现文件里，不导出也行。
+ */
+export interface FeedbackInternalHooks extends ModuleHooks {
   /** called by runtime or host to try applying effects */
   flushIfPossible(): void;
 
   /** optional hook: structural commit replaced DOM */
   afterRenderCommit(): void;
+
+  /** optional: runtime/adapter can call this after flush tick */
+  onEffectsFlushed?(): void;
 }
 
 export type FeedbackModule = ModuleInstance<FeedbackFacade> & {
   name: "feedback";
-  scope: ModuleScope;
+  scope: ModuleScope; // normally "instance"
 };
-
-export type CreateFeedbackModule = (
-  init: ModuleInit,
-  caps: CapsVaultView<FeedbackCaps>
-) => FeedbackModule;

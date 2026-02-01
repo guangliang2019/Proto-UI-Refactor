@@ -1,9 +1,9 @@
 // packages/module-event/test/contracts/event-module.v0.contract.test.ts
 import { describe, it, expect } from "vitest";
 import { EventModuleImpl } from "../../src/impl";
+import { makeCaps, createSysCaps } from "../utils/fake-caps";
 
 type ExecPhase = "setup" | "render" | "callback" | "unknown";
-type ProtoPhase = "setup" | "mounted" | "updated" | "unmounted"; // enough for tests
 
 function createMockTarget(label: string) {
   type Rec = { type: string; fn: any; options: any };
@@ -26,8 +26,6 @@ function createMockTarget(label: string) {
         const r = listeners[i]!;
         if (r.type !== t) continue;
         if (r.fn !== fn) continue;
-        // v0: we don't require deep equality here; impl passes exact same options ref
-        // so strict identity is enough to remove.
         if (r.options !== options) continue;
         listeners.splice(i, 1);
         return;
@@ -37,7 +35,6 @@ function createMockTarget(label: string) {
       return true;
     },
     __fire(type: string, ev: any = { type }) {
-      // fire snapshot to avoid issues if handlers remove themselves
       const snapshot = listeners.filter((r) => r.type === type).slice();
       for (const r of snapshot) r.fn(ev);
     },
@@ -51,117 +48,12 @@ function createMockTarget(label: string) {
   return target;
 }
 
-function createSysCaps() {
-  let execPhase: ExecPhase = "setup";
-  let protoPhase: ProtoPhase = "setup";
-  let disposed = false;
-
-  const sys = {
-    execPhase: () => execPhase,
-    domain: () => (execPhase === "setup" ? "setup" : "runtime"),
-    protoPhase: () => protoPhase,
-    isDisposed: () => disposed,
-
-    ensureNotDisposed(op: string) {
-      if (disposed) throw new Error(`[Disposed] ${op}`);
-    },
-
-    ensureExecPhase(op: string, expected: ExecPhase | ExecPhase[]) {
-      const list = Array.isArray(expected) ? expected : [expected];
-      if (!list.includes(execPhase)) {
-        const e = new Error(
-          `[Phase] ${op} expected ${list.join("|")} got ${execPhase}`
-        ) as any;
-        e.code = "EVENT_PHASE_VIOLATION";
-        throw e;
-      }
-    },
-
-    ensureSetup(op: string) {
-      if (execPhase !== "setup") {
-        const e = new Error(
-          `[Phase] ${op} setup-only, got ${execPhase}`
-        ) as any;
-        e.code = "EVENT_PHASE_VIOLATION";
-        throw e;
-      }
-    },
-
-    ensureRuntime(op: string) {
-      if (execPhase === "setup") {
-        const e = new Error(`[Phase] ${op} runtime-only, got setup`) as any;
-        e.code = "EVENT_PHASE_VIOLATION";
-        throw e;
-      }
-    },
-
-    ensureCallback(op: string) {
-      if (execPhase !== "callback") {
-        const e = new Error(
-          `[Phase] ${op} callback-only, got ${execPhase}`
-        ) as any;
-        e.code = "EVENT_PHASE_VIOLATION";
-        throw e;
-      }
-    },
-
-    // test controls
-    __setExecPhase(p: ExecPhase) {
-      execPhase = p;
-    },
-    __setProtoPhase(p: ProtoPhase) {
-      protoPhase = p;
-    },
-    __dispose() {
-      disposed = true;
-    },
-  };
-
-  return sys;
-}
-
-function createCapsVault(args: {
-  sys: any;
-  getRootTarget?: () => EventTarget | null;
-  getGlobalTarget?: () => EventTarget | null;
-}) {
-  const map: Record<string, any> = {
-    __sys: args.sys,
-    getRootTarget: args.getRootTarget,
-    getGlobalTarget: args.getGlobalTarget,
-  };
-
-  let epoch = 0;
-  const listeners = new Set<(epoch: number) => void>();
-
-  return {
-    get(key: string) {
-      return map[key];
-    },
-
-    onChange(cb: (epoch: number) => void) {
-      listeners.add(cb);
-      return () => listeners.delete(cb);
-    },
-
-    // test helper to mutate caps (simulate epoch changes)
-    __set(key: string, val: any) {
-      map[key] = val;
-    },
-
-    __bumpEpoch() {
-      epoch++;
-      for (const cb of listeners) cb(epoch);
-    },
-  };
-}
-
 describe("event-module: contract v0 (module semantics)", () => {
   it("EV-MOD-V0-1000: bind() with no registrations MUST be no-op and MUST NOT read targets", () => {
     const sys = createSysCaps();
     sys.__setExecPhase("render"); // runtime
 
-    const caps = createCapsVault({
+    const caps = makeCaps({
       sys,
       getRootTarget: () => {
         throw new Error("should not read root target");
@@ -179,7 +71,7 @@ describe("event-module: contract v0 (module semantics)", () => {
   it("EV-MOD-V0-1100: root target required only if root registrations exist", () => {
     const sys = createSysCaps();
 
-    const caps = createCapsVault({
+    const caps = makeCaps({
       sys,
       getRootTarget: () => null,
       getGlobalTarget: () => null,
@@ -200,7 +92,7 @@ describe("event-module: contract v0 (module semantics)", () => {
     const sys = createSysCaps();
     const root = createMockTarget("root");
 
-    const caps = createCapsVault({
+    const caps = makeCaps({
       sys,
       getRootTarget: () => root,
       getGlobalTarget: () => null,
@@ -221,7 +113,7 @@ describe("event-module: contract v0 (module semantics)", () => {
     const sys = createSysCaps();
     const root = createMockTarget("root");
 
-    const caps = createCapsVault({
+    const caps = makeCaps({
       sys,
       getRootTarget: () => root,
       getGlobalTarget: () => null,
@@ -251,7 +143,7 @@ describe("event-module: contract v0 (module semantics)", () => {
     const sys = createSysCaps();
     const root = createMockTarget("root");
 
-    const caps = createCapsVault({
+    const caps = makeCaps({
       sys,
       getRootTarget: () => root,
       getGlobalTarget: () => null,
@@ -283,7 +175,7 @@ describe("event-module: contract v0 (module semantics)", () => {
     const sys = createSysCaps();
     const root = createMockTarget("root");
 
-    const caps = createCapsVault({
+    const caps = makeCaps({
       sys,
       getRootTarget: () => root,
       getGlobalTarget: () => null,
@@ -318,7 +210,7 @@ describe("event-module: contract v0 (module semantics)", () => {
     const rootA = createMockTarget("rootA");
     const rootB = createMockTarget("rootB");
 
-    const caps = createCapsVault({
+    const caps = makeCaps({
       sys,
       getRootTarget: () => rootA,
       getGlobalTarget: () => null,
@@ -338,8 +230,8 @@ describe("event-module: contract v0 (module semantics)", () => {
     expect(rootA.__count("native:click")).toBe(1);
     expect(rootB.__count("native:click")).toBe(0);
 
-    caps.__set("getRootTarget", () => rootB);
-    caps.__bumpEpoch();
+    (caps as any).__set("getRootTarget", () => rootB);
+    (caps as any).__bumpEpoch();
 
     expect(rootA.__count("native:click")).toBe(0);
     expect(rootB.__count("native:click")).toBe(1);
@@ -354,7 +246,7 @@ describe("event-module: contract v0 (module semantics)", () => {
     const capRoot = createMockTarget("capRoot");
     const redirected = createMockTarget("redirected");
 
-    const caps = createCapsVault({
+    const caps = makeCaps({
       sys,
       getRootTarget: () => capRoot,
       getGlobalTarget: () => null,
@@ -386,7 +278,7 @@ describe("event-module: contract v0 (module semantics)", () => {
     const sys = createSysCaps();
     const root = createMockTarget("root");
 
-    const caps = createCapsVault({
+    const caps = makeCaps({
       sys,
       getRootTarget: () => root,
       getGlobalTarget: () => null,
@@ -407,7 +299,7 @@ describe("event-module: contract v0 (module semantics)", () => {
     expect(root.__count("native:click")).toBe(0);
 
     // After cleanup, bind should be no-op even if caps would throw
-    caps.__set("getRootTarget", () => {
+    (caps as any).__set("getRootTarget", () => {
       throw new Error("should not read targets after cleanup");
     });
 
@@ -420,7 +312,7 @@ describe("event-module: contract v0 (module semantics)", () => {
     const sys = createSysCaps();
     const root = createMockTarget("root");
 
-    const caps = createCapsVault({
+    const caps = makeCaps({
       sys,
       getRootTarget: () => root,
       getGlobalTarget: () => null,
@@ -437,7 +329,7 @@ describe("event-module: contract v0 (module semantics)", () => {
     const sys = createSysCaps();
     const root = createMockTarget("root");
 
-    const caps = createCapsVault({
+    const caps = makeCaps({
       sys,
       getRootTarget: () => root,
       getGlobalTarget: () => null,

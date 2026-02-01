@@ -1,20 +1,20 @@
-// packages/module-state/src/create.ts
 import { createModule } from "@proto-ui/module-base";
-import type { ModuleFactoryArgs, WithSystemCaps } from "@proto-ui/module-base";
-import { StateModuleImpl } from "./impl";
-import type { StateCaps, StateFacade, StateModule } from "./types";
+import type { ModuleFactoryArgs } from "@proto-ui/module-base";
+import { SYS_CAP } from "@proto-ui/module-base";
 
-export function createStateModule(
-  ctx: ModuleFactoryArgs<StateCaps & WithSystemCaps>
-): StateModule {
+import { StateModuleImpl } from "./impl";
+import type { StateFacade, StateModule } from "./types";
+
+export function createStateModule(ctx: ModuleFactoryArgs): StateModule {
   const { init, caps } = ctx;
-  return createModule<"state", "instance", StateCaps, StateFacade>({
+
+  return createModule<"state", "instance", StateFacade>({
     name: "state",
     scope: "instance",
     init,
     caps,
     build: ({ caps }) => {
-      const sys = caps.get("__sys");
+      const sys = caps.get(SYS_CAP);
       const impl = new StateModuleImpl(sys);
 
       return {

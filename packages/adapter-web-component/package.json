@@ -7,12 +7,12 @@
     "@proto-ui/core": "workspace:*",
     "@proto-ui/runtime": "workspace:*",
     "@proto-ui/types": "workspace:*",
-    "@proto-ui/adapter-base": "workspace:*"
-  },
-  "devDependencies": {
+    "@proto-ui/adapter-base": "workspace:*",
     "@proto-ui/module-feedback": "workspace:*",
-    "@proto-ui/module-props": "workspace:*"
+    "@proto-ui/module-props": "workspace:*",
+    "@proto-ui/module-event": "workspace:*"
   },
+  "devDependencies": {},
   "exports": {
     ".": {
       "types": "./src/index.ts",

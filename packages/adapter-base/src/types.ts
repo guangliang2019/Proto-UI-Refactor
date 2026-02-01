@@ -1,12 +1,13 @@
 // packages/adapter-base/src/types.ts
-import type { ModuleHub } from "@proto-ui/runtime"; 
+import { CapEntries } from "@proto-ui/core";
+import type { ModuleHub } from "@proto-ui/runtime";
 
 export type ModuleName = string;
 
 // moduleName -> caps-shape (typed by caller)
 export type WiringSpec = Record<
   ModuleName,
-  (ctx: { prototypeName: string }) => Record<string, any>
+  (init: { prototypeName: string }) => CapEntries
 >;
 
 export type HostWiring = {

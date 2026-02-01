@@ -1,9 +1,7 @@
 // packages/adapter-base/src/wiring/host-wiring.ts
 import type { HostWiring, WiringSpec } from "../types";
 import type { ModuleHub } from "@proto-ui/runtime";
-import type { CapsController } from "@proto-ui/module-base";
-
-const RESERVED_SYSTEM_KEYS = new Set(["__sys"]);
+import type { CapEntries } from "@proto-ui/core";
 
 export function createHostWiring(args: {
   prototypeName: string;
@@ -11,37 +9,29 @@ export function createHostWiring(args: {
 }): HostWiring {
   const { prototypeName, modules } = args;
 
-  const controllers = new Map<string, CapsController<any>>();
+  const controllers = new Map<
+    string,
+    { attach(e: CapEntries): void; reset(): void }
+  >();
 
   return {
-    onRuntimeReady(capsHub: ModuleHub) {
+    onRuntimeReady(hub: ModuleHub) {
       for (const [name, provide] of Object.entries(modules)) {
-        const controller = capsHub.getCapsController<any>(name);
-        if (!controller) continue;
+        const c = hub.getCapsController(name);
+        if (!c) continue;
+        controllers.set(name, c);
 
-        controllers.set(name, controller);
-
-        const partial = provide({ prototypeName });
-
-        // forbid overriding system caps
-        for (const k of Object.keys(partial as any)) {
-          if (RESERVED_SYSTEM_KEYS.has(k)) {
-            throw new Error(
-              `[Wiring] ${prototypeName}/${name} attempted to provide reserved cap: ${k}`
-            );
-          }
-        }
-
-        controller.attach(partial);
+        const entries = provide({ prototypeName });
+        c.attach(entries);
       }
     },
 
     afterUnmount() {
-      for (const [name, c] of controllers) {
+      for (const c of controllers.values()) {
         try {
           c.reset();
         } catch {
-          // ignore in v0
+          // ignore v0
         }
       }
       controllers.clear();

@@ -3,7 +3,10 @@ import type { Prototype, EffectsPort, StyleHandle } from "@proto-ui/core";
 import { executeWithHost, type RuntimeHost } from "@proto-ui/runtime";
 import { PropsBaseType } from "@proto-ui/types";
 
-import type { RawPropsSource } from "@proto-ui/module-props";
+import {
+  RAW_PROPS_SOURCE_CAP,
+  type RawPropsSource,
+} from "@proto-ui/module-props";
 
 import {
   createHostWiring,
@@ -16,6 +19,11 @@ import { bindController, getElementProps, unbindController } from "./props";
 import { SlotProjector } from "./slot-projector";
 import { createOwnedTwTokenApplier } from "./feedback-style";
 import { createWebProtoEventRouter } from "./events";
+import { EFFECTS_CAP } from "@proto-ui/module-feedback";
+import {
+  EVENT_GLOBAL_TARGET_CAP,
+  EVENT_ROOT_TARGET_CAP,
+} from "@proto-ui/module-event";
 
 function assertKebabCase(tag: string) {
   if (!tag.includes("-") || tag.toLowerCase() !== tag) {
@@ -25,20 +33,22 @@ function assertKebabCase(tag: string) {
   }
 }
 
-export interface WebComponentAdapterOptions {
+export interface WebComponentAdapterOptions<
+  Props extends PropsBaseType = PropsBaseType
+> {
   shadow?: boolean;
-  getProps?: (el: HTMLElement) => any;
+  getProps?: (el: HTMLElement) => Partial<Props> | null | undefined;
   schedule?: (task: () => void) => void;
 }
 
 export function AdaptToWebComponent<Props extends PropsBaseType>(
   proto: Prototype<Props>,
-  opt: WebComponentAdapterOptions = {}
+  opt: WebComponentAdapterOptions<Props> = {}
 ) {
   assertKebabCase(proto.name);
 
   const shadow = opt.shadow ?? false;
-  const getProps = opt.getProps ?? (() => ({}));
+  const getProps = opt.getProps ?? (() => ({} as Partial<Props>));
   const schedule = opt.schedule ?? ((task) => queueMicrotask(task));
 
   class ProtoElement extends HTMLElement {
@@ -83,12 +93,19 @@ export function AdaptToWebComponent<Props extends PropsBaseType>(
 
       const rawPropsSource: RawPropsSource<Props> = {
         debugName: `${proto.name}#raw-props`,
-        get() {
-          // keep existing strategy: attrs first, then opt.getProps
-          return (getElementProps(thisEl) ?? getProps(thisEl) ?? {}) as any;
+
+        get(): Readonly<Props & PropsBaseType> {
+          // attrs-first, then opt.getProps
+          const p =
+            getElementProps(thisEl) ??
+            getProps(thisEl) ??
+            ({} as Partial<Props>);
+
+          // WC 从 DOM 取值，类型安全只能止步于边界；用 unknown 双断言把风险收口在这一处
+          return p as unknown as Readonly<Props & PropsBaseType>;
         },
+
         subscribe(cb) {
-          // minimal: observe attributes changes
           const mo = new MutationObserver((records) => {
             for (const r of records) {
               if (r.type === "attributes") {
@@ -107,20 +124,20 @@ export function AdaptToWebComponent<Props extends PropsBaseType>(
       const wiring = createHostWiring({
         prototypeName: proto.name,
         modules: {
-          props: () => ({ rawPropsSource }),
-          feedback: () => ({ effects: effectsPort }),
-          event: () => ({
-            getRootTarget: () => router.rootTarget,
-            getGlobalTarget: () => router.globalTarget,
-          }),
+          props: () => [[RAW_PROPS_SOURCE_CAP, rawPropsSource]],
+          feedback: () => [[EFFECTS_CAP, effectsPort]],
+          event: () => [
+            [EVENT_ROOT_TARGET_CAP, () => router.rootTarget],
+            [EVENT_GLOBAL_TARGET_CAP, () => router.globalTarget],
+          ],
         },
       });
 
       const host: RuntimeHost<Props> = {
         prototypeName: proto.name,
 
-        getRawProps() {
-          return rawPropsSource.get();
+        getRawProps(): Readonly<Props & PropsBaseType> {
+          return rawPropsSource.get() as Readonly<Props & PropsBaseType>;
         },
 
         // CP1: runtime ready hook (called before created + before first commit)

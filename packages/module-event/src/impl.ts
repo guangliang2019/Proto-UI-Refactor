@@ -1,13 +1,12 @@
-// packages/module-event/src/impl.ts
-import type { ProtoPhase } from "@proto-ui/core";
+import type { ProtoPhase, CapsVaultView } from "@proto-ui/core";
 import { illegalPhase } from "@proto-ui/core";
 
 import { ModuleBase } from "@proto-ui/module-base";
-import type { CapsVaultView, WithSystemCaps } from "@proto-ui/module-base";
 
-import type { EventCaps, EventDispatch } from "./types";
+import type { EventDispatch } from "./types";
 import { EventKernel } from "./kernel";
 import { EventListenerToken, EventTypeV0 } from "@proto-ui/types";
+import { EVENT_GLOBAL_TARGET_CAP, EVENT_ROOT_TARGET_CAP } from "./caps";
 
 function illegalEventTarget(message: string, detail?: any) {
   const err = new Error(message) as any;
@@ -36,12 +35,12 @@ function isEventTargetLike(x: any): x is EventTarget {
   return (
     !!x &&
     (typeof x === "object" || typeof x === "function") &&
-    typeof x.addEventListener === "function" &&
-    typeof x.removeEventListener === "function"
+    typeof (x as any).addEventListener === "function" &&
+    typeof (x as any).removeEventListener === "function"
   );
 }
 
-export class EventModuleImpl extends ModuleBase<EventCaps> {
+export class EventModuleImpl extends ModuleBase {
   private readonly kernel = new EventKernel();
   private readonly prototypeName: string;
 
@@ -50,10 +49,7 @@ export class EventModuleImpl extends ModuleBase<EventCaps> {
   private lastDispatch: EventDispatch | null = null;
   private isBound = false;
 
-  constructor(
-    caps: CapsVaultView<EventCaps & WithSystemCaps>,
-    prototypeName: string
-  ) {
+  constructor(caps: CapsVaultView, prototypeName: string) {
     super(caps);
     this.prototypeName = prototypeName;
   }
@@ -63,9 +59,10 @@ export class EventModuleImpl extends ModuleBase<EventCaps> {
   // -------------------------
 
   private ensureSetup(op: string) {
-    // Prefer system caps: most precise.
+    // Prefer system caps (most precise)
     this.sys?.ensureSetup(op);
-    // Fallback: proto-phase based (for adapters/tests that don't wire sys)
+
+    // Fallback: proto-phase based (for tests that don't wire sys)
     if (!this.sys && this.protoPhase !== "setup") {
       throw illegalPhase(op, this.protoPhase, {
         prototypeName: this.prototypeName,
@@ -101,10 +98,7 @@ export class EventModuleImpl extends ModuleBase<EventCaps> {
     if (!isEventTargetLike(target)) {
       throw illegalEventArg(
         `[Event] redirectRoot() requires an EventTarget-like object.`,
-        {
-          prototypeName: this.prototypeName,
-          target,
-        }
+        { prototypeName: this.prototypeName, target }
       );
     }
     this.overriddenRootTarget = target;
@@ -141,10 +135,7 @@ export class EventModuleImpl extends ModuleBase<EventCaps> {
     if (kind !== "root" && kind !== "global") {
       throw illegalEventArg(
         `[Event] invalid kind for offLatest: ${String(kind)}`,
-        {
-          prototypeName: this.prototypeName,
-          kind,
-        }
+        { prototypeName: this.prototypeName, kind }
       );
     }
     this.guardArgs(type);
@@ -164,19 +155,24 @@ export class EventModuleImpl extends ModuleBase<EventCaps> {
     // v0 contract: no registrations => no-op (must not read targets)
     if (!needsRoot && !needsGlobal) return;
 
-    const root =
-      this.overriddenRootTarget ?? this.caps.get("getRootTarget")?.();
+    const rootGetter = this.caps.has(EVENT_ROOT_TARGET_CAP)
+      ? this.caps.get(EVENT_ROOT_TARGET_CAP)
+      : undefined;
+
+    const globalGetter = this.caps.has(EVENT_GLOBAL_TARGET_CAP)
+      ? this.caps.get(EVENT_GLOBAL_TARGET_CAP)
+      : undefined;
+
+    const root = this.overriddenRootTarget ?? rootGetter?.() ?? null;
 
     if (needsRoot && !root) {
       throw illegalEventTarget(
         `[Event] root target unavailable during bind().`,
-        {
-          prototypeName: this.prototypeName,
-        }
+        { prototypeName: this.prototypeName }
       );
     }
 
-    const global = needsGlobal ? this.caps.get("getGlobalTarget")?.() : null;
+    const global = needsGlobal ? globalGetter?.() ?? null : null;
     if (needsGlobal && !global) {
       throw illegalEventTarget(
         `[Event] global target unavailable during bind().`,

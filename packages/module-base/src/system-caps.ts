@@ -1,5 +1,5 @@
 // packages/module-base/src/system-caps.ts
-import type { ProtoPhase } from "@proto-ui/core";
+import { cap, type ProtoPhase } from "@proto-ui/core";
 
 export type ExecPhase = "setup" | "render" | "callback" | "unknown";
 export type GuardDomain = "setup" | "runtime";
@@ -32,6 +32,4 @@ export interface SystemCaps {
   ensureCallback(op: string): void;
 }
 
-export type WithSystemCaps = {
-  __sys: SystemCaps;
-};
+export const SYS_CAP = cap<SystemCaps>("@proto-ui/__sys");

@@ -3,13 +3,6 @@ import type { ModuleInstance } from "@proto-ui/core";
 import type { ModulePort } from "@proto-ui/core";
 import { EventListenerToken, EventTypeV0 } from "@proto-ui/types";
 
-export type EventCaps = {
-  /** adapter-defined root target (interaction subject) */
-  getRootTarget(): EventTarget | null;
-  /** adapter-defined global target */
-  getGlobalTarget(): EventTarget | null;
-};
-
 export type EventDispatch = (id: string, ev: any) => void;
 
 export type EventFacade = {

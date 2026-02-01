@@ -5,9 +5,7 @@
     "type": "module",
     "dependencies": {
       "@proto-ui/core": "workspace:*",
-      "@proto-ui/runtime": "workspace:*",
-      "@proto-ui/types": "workspace:*",
-      "@proto-ui/module-base": "workspace:*"
+      "@proto-ui/runtime": "workspace:*"
     },
     "exports": {
       ".": {

@@ -1,15 +1,13 @@
-// packages/module-event/src/create.ts
 import { createModule } from "@proto-ui/module-base";
-import type { ModuleFactoryArgs, WithSystemCaps } from "@proto-ui/module-base";
-import type { EventCaps, EventFacade, EventModule, EventPort } from "./types";
+import type { ModuleFactoryArgs } from "@proto-ui/module-base";
+
+import type { EventFacade, EventModule, EventPort } from "./types";
 import { EventModuleImpl } from "./impl";
 
-export function createEventModule(
-  ctx: ModuleFactoryArgs<EventCaps & WithSystemCaps>
-): EventModule {
+export function createEventModule(ctx: ModuleFactoryArgs): EventModule {
   const { init, caps } = ctx;
 
-  return createModule<"event", "instance", EventCaps, EventFacade, EventPort>({
+  return createModule<"event", "instance", EventFacade, EventPort>({
     name: "event",
     scope: "instance",
     init,

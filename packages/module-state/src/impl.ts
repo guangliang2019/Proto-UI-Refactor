@@ -1,13 +1,11 @@
-// packages/module-state/src/impl.ts
 import type { OwnedStateHandle } from "@proto-ui/core";
 import type { SystemCaps } from "@proto-ui/module-base";
-import { StateKernel } from "./kernel";
-import type { StateFacade, StateModuleInternal } from "./types";
 import type { StateSetReason } from "@proto-ui/types";
 
+import { StateKernel } from "./kernel";
+import type { StateFacade, StateModuleInternal } from "./types";
+
 function opOf(semantic: string, method: string) {
-  // 你可以换成更“contract 风格”的 op 名字
-  // 关键是错误信息稳定、可定位
   return `state(${semantic}).${method}`;
 }
 
@@ -23,19 +21,16 @@ function wrapOwnedHandle<V>(
     },
 
     setDefault: (v) => {
-      // setup-only
       sys.ensureSetup(opOf(semantic, "setDefault"));
       return raw.setDefault(v);
     },
 
     set: (v, reason?: StateSetReason) => {
-      // callback-only (防 render-phase 变更)
       sys.ensureCallback(opOf(semantic, "set"));
       return raw.set(v, reason);
     },
   };
 
-  // 继承 kernel 写入的 metadata（测试/调试/未来 module internal 可能会用）
   (wrapped as any).__stateId = (raw as any).__stateId;
   (wrapped as any).__stateSemantic = (raw as any).__stateSemantic ?? semantic;
   (wrapped as any).__stateKind = (raw as any).__stateKind;

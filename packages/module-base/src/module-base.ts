@@ -1,23 +1,15 @@
 // packages/module-base/src/module-base.ts
 import type { ProtoPhase } from "@proto-ui/core";
-import type { CapsVaultView } from "./caps-vault";
-import type { WithSystemCaps } from "./system-caps";
+import type { CapsVaultView } from "@proto-ui/core";
+import { SYS_CAP } from "./system-caps";
 
-/**
- * Thin base for modules:
- * - track proto phase
- * - listen to caps changes (epoch)
- * - provide a tiny defer queue
- *
- * No render strategy, no host logic.
- */
-export abstract class ModuleBase<Caps extends object> {
+export abstract class ModuleBase {
   protected protoPhase: ProtoPhase = "setup";
-  protected readonly caps: CapsVaultView<Caps & WithSystemCaps>;
+  protected readonly caps: CapsVaultView;
 
   private pending: Array<() => void> = [];
 
-  constructor(caps: CapsVaultView<Caps & WithSystemCaps>) {
+  constructor(caps: CapsVaultView) {
     this.caps = caps;
     this.caps.onChange((epoch) => {
       this.onCapsEpoch(epoch);
@@ -25,18 +17,15 @@ export abstract class ModuleBase<Caps extends object> {
     });
   }
 
-  /** optional convenience getter */
   protected get sys() {
-    return this.caps.get("__sys");
+    return this.caps.get(SYS_CAP);
   }
 
   onProtoPhase(phase: ProtoPhase): void {
     this.protoPhase = phase;
   }
 
-  protected onCapsEpoch(_epoch: number): void {
-    // subclasses may override
-  }
+  protected onCapsEpoch(_epoch: number): void {}
 
   protected defer(fn: () => void): void {
     this.pending.push(fn);

@@ -4,6 +4,10 @@ import type { Prototype, TemplateChildren } from "@proto-ui/core";
 import { executeWithHost } from "@proto-ui/runtime";
 import type { RuntimeHost } from "@proto-ui/runtime";
 import { createHostWiring } from "@proto-ui/adapter-base";
+import {
+  EVENT_GLOBAL_TARGET_CAP,
+  EVENT_ROOT_TARGET_CAP,
+} from "../../../module-event/src/caps";
 
 function createHost(
   prototypeName: string,
@@ -18,11 +22,11 @@ function createHost(
   const wiring = createHostWiring({
     prototypeName,
     modules: {
-      // runtime 合同测试里只关心 event，就只注入 event
-      event: () => ({
-        getRootTarget: () => opt.rootTarget ?? null,
-        getGlobalTarget: () => opt.globalTarget ?? null,
-      }),
+      // runtime 合同测试里只关心 event，就只注入 event caps
+      event: () => [
+        [EVENT_ROOT_TARGET_CAP, () => opt.rootTarget ?? null],
+        [EVENT_GLOBAL_TARGET_CAP, () => opt.globalTarget ?? null],
+      ],
     },
   });
 
@@ -80,7 +84,7 @@ describe("runtime contract: event target requirements (v0)", () => {
 
     const { host } = createHost(protoName, {
       rootTarget: new EventTarget(),
-      globalTarget: null, // 缺 global 也应该 OK
+      globalTarget: null, // 缺 global 也应该 OK（因为没有 global registrations）
     });
 
     expect(() => executeWithHost(P as any, host as any)).not.toThrow();
