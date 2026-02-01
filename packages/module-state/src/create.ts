@@ -1,3 +1,4 @@
+// packages/module-state/src/create.ts
 import { createModule } from "@proto-ui/module-base";
 import type { ModuleFactoryArgs } from "@proto-ui/module-base";
 import { SYS_CAP } from "@proto-ui/module-base";

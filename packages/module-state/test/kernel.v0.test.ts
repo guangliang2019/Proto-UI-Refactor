@@ -18,7 +18,7 @@ describe("state-kernel.v0", () => {
 
   it("setDefault does not emit; set emits only on change (Object.is)", () => {
     const k = new StateKernel();
-    const h = k.define("count", { kind: "numberDiscrete" }, 0);
+    const h = k.define("count", { kind: "number.discrete" }, 0);
 
     const events: Array<{ prev: number; next: number }> = [];
     k.subscribe(h, (e: any) => {
@@ -44,7 +44,7 @@ describe("state-kernel.v0", () => {
 
   it("subscribers are FIFO, and unsubscribe works", () => {
     const k = new StateKernel();
-    const h = k.define("x", { kind: "numberDiscrete" }, 0);
+    const h = k.define("x", { kind: "number.discrete" }, 0);
 
     const calls: string[] = [];
     const off1 = k.subscribe(h, () => calls.push("a"));
@@ -68,7 +68,7 @@ describe("state-kernel.v0", () => {
 
   it("re-entrant set during emit is queued and flushed deterministically", () => {
     const k = new StateKernel();
-    const h = k.define("x", { kind: "numberDiscrete" }, 0);
+    const h = k.define("x", { kind: "number.discrete" }, 0);
 
     const seq: number[] = [];
 

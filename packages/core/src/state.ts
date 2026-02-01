@@ -1,6 +1,13 @@
 // packages/core/src/state.ts
 // ---- Component-author side handles (governed by Proto UI) ----
-import { PropsBaseType, StateSetReason } from "@proto-ui/types";
+import {
+  EnumStateSpec,
+  NumberDiscreteStateSpec,
+  NumberRangeStateSpec,
+  PropsBaseType,
+  StateSetReason,
+  StringStateSpec,
+} from "@proto-ui/types";
 import { StateSubscribeCallback, StateWatchCallback } from "./handles";
 
 export type Unsubscribe = () => void;
@@ -28,7 +35,7 @@ export interface BorrowedStateHandle<V, P extends PropsBaseType>
 }
 
 /** Observed: no design authority, but may be uncontrolled -> watch allowed. */
-export interface ObservedStateHandle< V, P extends PropsBaseType> {
+export interface ObservedStateHandle<V, P extends PropsBaseType> {
   get(): V;
   watch(cb: StateWatchCallback<V, P>): Unsubscribe;
 }
@@ -48,7 +55,7 @@ export interface StateDefAPI {
   enum<const O extends readonly string[]>(
     semantic: string,
     defaultValue: O[number],
-    spec: { options: O }
+    spec: EnumStateSpec<O>
   ): OwnedStateHandle<O[number]>;
 
   /**
@@ -58,23 +65,18 @@ export interface StateDefAPI {
   string(
     semantic: string,
     defaultValue: string,
-    spec?: { options?: readonly string[] }
+    spec?: StringStateSpec
   ): OwnedStateHandle<string>;
 
   numberRange(
     semantic: string,
     defaultValue: number,
-    spec: { min: number; max: number; clamp?: boolean }
+    spec: NumberRangeStateSpec
   ): OwnedStateHandle<number>;
 
   numberDiscrete(
     semantic: string,
     defaultValue: number,
-    spec: {
-      options?: readonly number[];
-      min?: number;
-      max?: number;
-      step?: number;
-    }
+    spec: NumberDiscreteStateSpec
   ): OwnedStateHandle<number>;
 }

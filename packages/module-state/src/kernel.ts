@@ -1,56 +1,22 @@
 // packages/module-state/src/kernel.ts
 import type { OwnedStateHandle } from "@proto-ui/core";
-import type { StateEvent, StateSetReason } from "@proto-ui/types";
+import type { StateEvent, StateSetReason, StateSpec } from "@proto-ui/types";
 
 export type StateKind =
   | "bool"
   | "enum"
   | "string"
-  | "numberRange"
-  | "numberDiscrete";
+  | "number.range"
+  | "number.discrete";
 
 export type StateId = number;
-
-export type BoolSpec = { kind: "bool" };
-
-export type EnumSpec<O extends readonly string[] = readonly string[]> = {
-  kind: "enum";
-  options: O;
-};
-
-export type StringSpec = {
-  kind: "string";
-  options?: readonly string[];
-};
-
-export type NumberRangeSpec = {
-  kind: "numberRange";
-  min: number;
-  max: number;
-  clamp?: boolean;
-};
-
-export type NumberDiscreteSpec = {
-  kind: "numberDiscrete";
-  options?: readonly number[];
-  min?: number;
-  max?: number;
-  step?: number;
-};
-
-export type AnyStateSpec =
-  | BoolSpec
-  | EnumSpec
-  | StringSpec
-  | NumberRangeSpec
-  | NumberDiscreteSpec;
 
 type Subscriber<V> = (e: StateEvent<V>) => void;
 
 type StateRecord<V> = {
   id: StateId;
   semantic: string;
-  spec: AnyStateSpec;
+  spec: StateSpec;
   value: V;
   subscribers: Set<Subscriber<V>>;
 };
@@ -64,7 +30,11 @@ export class StateKernel {
   private pending: Array<() => void> = [];
 
   /** Define a state and return an owned handle. */
-  define<V>(semantic: string, spec: AnyStateSpec, defaultValue: V): OwnedStateHandle<V> {
+  define<V>(
+    semantic: string,
+    spec: StateSpec,
+    defaultValue: V
+  ): OwnedStateHandle<V> {
     const id = this.nextId++;
     const rec: StateRecord<V> = {
       id,

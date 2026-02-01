@@ -1,14 +1,11 @@
 // packages/module-state/src/types.ts
-import type { OwnedStateHandle } from "@proto-ui/core";
-import type {
-  EnumSpec,
-  NumberDiscreteSpec,
-  NumberRangeSpec,
-  StringSpec,
-} from "./kernel";
-
-// caps: v0 暂时无需额外 caps（仅依赖 __sys）
-export type StateCaps = {};
+import type { ModuleInstance, OwnedStateHandle } from "@proto-ui/core";
+import {
+  EnumStateSpec,
+  NumberDiscreteStateSpec,
+  NumberRangeStateSpec,
+  StringStateSpec,
+} from "@proto-ui/types";
 
 export type StateFacade = {
   bool: (semantic: string, defaultValue: boolean) => OwnedStateHandle<boolean>;
@@ -16,41 +13,30 @@ export type StateFacade = {
   enum: <O extends readonly string[]>(
     semantic: string,
     defaultValue: O[number],
-    spec: { options: O }
+    spec: EnumStateSpec<O>
   ) => OwnedStateHandle<O[number]>;
 
   string: (
     semantic: string,
     defaultValue: string,
-    spec?: { options?: readonly string[] }
+    spec?: StringStateSpec
   ) => OwnedStateHandle<string>;
 
   numberRange: (
     semantic: string,
     defaultValue: number,
-    spec: Pick<NumberRangeSpec, "min" | "max" | "clamp">
+    spec: NumberRangeStateSpec
   ) => OwnedStateHandle<number>;
 
   numberDiscrete: (
     semantic: string,
     defaultValue: number,
-    spec: Pick<NumberDiscreteSpec, "options" | "min" | "max" | "step">
+    spec: NumberDiscreteStateSpec
   ) => OwnedStateHandle<number>;
 };
 
-// module instance type (对齐你其他模块的导出习惯)
-export type StateModule = {
+export type StateModule = ModuleInstance<StateFacade> & {
   name: "state";
   scope: "instance";
-  facade: StateFacade;
-  hooks: {
-    dispose?: () => void;
-  };
   port?: never;
 };
-
-// internal (如果你还在用)
-export interface StateModuleInternal {
-  facade: StateFacade;
-  dispose(): void;
-}

@@ -1,3 +1,4 @@
+// packages/module-event/src/impl.ts
 import type { ProtoPhase, CapsVaultView } from "@proto-ui/core";
 import { illegalPhase } from "@proto-ui/core";
 

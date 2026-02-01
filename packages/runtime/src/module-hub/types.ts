@@ -1,3 +1,4 @@
+// packages/runtime/src/module-hub/types.ts
 import type {
   ModuleFacade,
   ModuleInstance,

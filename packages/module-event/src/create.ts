@@ -1,3 +1,4 @@
+// packages/module-event/src/create.ts
 import { createModule } from "@proto-ui/module-base";
 import type { ModuleFactoryArgs } from "@proto-ui/module-base";
 

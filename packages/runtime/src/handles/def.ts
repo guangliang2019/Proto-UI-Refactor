@@ -42,7 +42,7 @@ export const createDefHandle = <P extends PropsBaseType>(
 
   const state = facades["state"] as StateFacade;
 
-  const eventMod = facades["event"] as any; // module-event facade (new, cb-less)
+  const eventFacade = facades["event"] as EventFacade;
   const eventRegistry = new EventRuntimeRegistry<P>();
 
   // expose to executeWithHost
@@ -139,7 +139,7 @@ export const createDefHandle = <P extends PropsBaseType>(
       on: (type, cb, options) => {
         ensureSetup(`def.event.on`);
         // module-event: on(type, options) -> token
-        const token = eventMod.on(type, options);
+        const token = eventFacade.on(type, options);
         eventRegistry.register("root", type, cb, options, (token as any).id);
         return token;
       },
@@ -151,12 +151,12 @@ export const createDefHandle = <P extends PropsBaseType>(
 
         eventRegistry.removeById(hit.id);
         // call module-event precise removal
-        eventMod.offToken({ id: hit.id } as any);
+        eventFacade.offToken({ id: hit.id } as any);
       },
 
       onGlobal: (type, cb, options) => {
         ensureSetup(`def.event.onGlobal`);
-        const token = eventMod.onGlobal(type, options);
+        const token = eventFacade.onGlobal(type, options);
         eventRegistry.register("global", type, cb, options, (token as any).id);
         return token;
       },
@@ -167,7 +167,7 @@ export const createDefHandle = <P extends PropsBaseType>(
         if (!hit) return;
 
         eventRegistry.removeById(hit.id);
-        eventMod.offToken({ id: hit.id } as any);
+        eventFacade.offToken({ id: hit.id } as any);
       },
 
       offToken: (token) => {
@@ -176,7 +176,7 @@ export const createDefHandle = <P extends PropsBaseType>(
         if (typeof id === "string" && id) {
           eventRegistry.removeById(id);
         }
-        eventMod.offToken(token);
+        eventFacade.offToken(token);
       },
     },
 

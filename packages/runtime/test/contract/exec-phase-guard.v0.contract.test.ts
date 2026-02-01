@@ -99,7 +99,7 @@ describe("runtime contract: exec phase guard (v0)", () => {
     const P: Prototype = {
       name: "x-runtime-exec-phase-dispose",
       setup(def) {
-        s = def.state.numberDiscrete("count", 0, {});
+        s = def.state.numberDiscrete("count", 0, {kind: "number.discrete"});
 
         def.lifecycle.onUnmounted(() => {
           // during unmounted callback: NOT disposed yet, must be usable

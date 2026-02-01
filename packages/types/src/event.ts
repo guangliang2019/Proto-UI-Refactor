@@ -1,3 +1,4 @@
+// packages/types/src/event.ts
 export type CoreEventType =
   | "press.start"
   | "press.end"

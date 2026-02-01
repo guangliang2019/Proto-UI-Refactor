@@ -1,9 +1,10 @@
+// packages/module-state/src/impl.ts
 import type { OwnedStateHandle } from "@proto-ui/core";
 import type { SystemCaps } from "@proto-ui/module-base";
 import type { StateSetReason } from "@proto-ui/types";
 
 import { StateKernel } from "./kernel";
-import type { StateFacade, StateModuleInternal } from "./types";
+import type { StateFacade } from "./types";
 
 function opOf(semantic: string, method: string) {
   return `state(${semantic}).${method}`;
@@ -38,7 +39,7 @@ function wrapOwnedHandle<V>(
   return wrapped;
 }
 
-export class StateModuleImpl implements StateModuleInternal {
+export class StateModuleImpl {
   readonly kernel = new StateKernel();
   private disposed = false;
 
@@ -76,7 +77,7 @@ export class StateModuleImpl implements StateModuleInternal {
       const h = this.kernel.define<number>(
         semantic,
         {
-          kind: "numberRange",
+          kind: "number.range",
           min: spec.min,
           max: spec.max,
           clamp: spec.clamp,
@@ -90,7 +91,7 @@ export class StateModuleImpl implements StateModuleInternal {
       const h = this.kernel.define<number>(
         semantic,
         {
-          kind: "numberDiscrete",
+          kind: "number.discrete",
           options: spec.options,
           min: spec.min,
           max: spec.max,
