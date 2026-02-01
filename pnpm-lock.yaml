@@ -50,6 +50,9 @@ importers:
       '@proto-ui/module-props':
         specifier: workspace:*
         version: link:../module-props
+      '@proto-ui/module-test-sys':
+        specifier: workspace:*
+        version: link:../module-test-sys
       '@proto-ui/runtime':
         specifier: workspace:*
         version: link:../runtime
@@ -114,6 +117,18 @@ importers:
         specifier: workspace:*
         version: link:../types
 
+  packages/module-test-sys:
+    dependencies:
+      '@proto-ui/core':
+        specifier: workspace:*
+        version: link:../core
+      '@proto-ui/module-base':
+        specifier: workspace:*
+        version: link:../module-base
+      '@proto-ui/types':
+        specifier: workspace:*
+        version: link:../types
+
   packages/rule:
     dependencies:
       '@proto-ui/core':
@@ -140,6 +155,9 @@ importers:
       '@proto-ui/module-state':
         specifier: workspace:*
         version: link:../module-state
+      '@proto-ui/module-test-sys':
+        specifier: workspace:*
+        version: link:../module-test-sys
       '@proto-ui/rule':
         specifier: workspace:*
         version: link:../rule

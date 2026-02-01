@@ -30,6 +30,11 @@ import { RuntimeTimeline } from "./timeline";
 import { createEventModule } from "@proto-ui/module-event";
 import { createStateModule } from "@proto-ui/module-state";
 import { ExecPhase } from "@proto-ui/module-base";
+import {
+  __RUN_TEST_SYS,
+  createTestSysModule,
+  type TestSysPort,
+} from "@proto-ui/module-test-sys";
 
 export type Engine<P extends PropsBaseType> = {
   getPhase(): Phase;
@@ -72,6 +77,7 @@ export function createEngine<P extends PropsBaseType>(
       { name: "props", create: createPropsModule },
       { name: "event", create: createEventModule },
       { name: "state", create: createStateModule },
+      { name: "test-sys", create: createTestSysModule },
     ]
   );
 
@@ -97,6 +103,16 @@ export function createEngine<P extends PropsBaseType>(
     }
     runUpdateImpl();
   }, moduleHub);
+  // add test-sys to run handle, for contract tests
+  const testSys = moduleHub.getPort<TestSysPort>("test-sys");
+  if (testSys) {
+    Object.defineProperty(run as any, __RUN_TEST_SYS, {
+      value: testSys,
+      enumerable: false,
+      configurable: false,
+      writable: false,
+    });
+  }
 
   const facades = moduleHub.getFacades();
   const propsFacade = facades["props"] as PropsFacade<P>;

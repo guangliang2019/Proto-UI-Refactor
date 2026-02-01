@@ -82,6 +82,12 @@ function appendCommittedChild(
   const t = child.type;
 
   if (isReservedType(t) && t.kind === "slot") {
+    if ((child as any).children != null) {
+      throw new Error(`[WC Adapter] slot node must not have children in v0.`);
+    }
+    if ((child as any).style != null) {
+      throw new Error(`[WC Adapter] slot node must not have style in v0.`);
+    }
     // v0: 核心语法层已禁止具名，这里仍防御
     if ((t as any).name) {
       throw new Error(`[WC Adapter] named slot is not supported in v0.`);

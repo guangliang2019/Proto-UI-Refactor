@@ -1,3 +1,4 @@
+// packages/adapter-web-component/test/event-gate.effectiveness.test.ts
 // @vitest-environment happy-dom
 import { describe, it, expect, vi } from "vitest";
 import { AdaptToWebComponent } from "../src/adapt";

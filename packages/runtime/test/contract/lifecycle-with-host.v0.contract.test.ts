@@ -1,4 +1,4 @@
-// packages/runtime/test/contracts/lifecycle-with-host.v0.contract.test.ts
+// packages/runtime/test/contract/lifecycle-with-host.v0.contract.test.ts
 import { describe, it, expect } from "vitest";
 import type { Prototype, TemplateChildren } from "@proto-ui/core";
 import { executeWithHost } from "../../src/execute";

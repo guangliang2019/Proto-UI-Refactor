@@ -1,3 +1,4 @@
+// packages/adapter-web-component/test/event-gate.order.strict.test.ts
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { FakeEventTarget } from "./utils/fake-target";
 
