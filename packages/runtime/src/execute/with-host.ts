@@ -7,7 +7,7 @@ import { createEngine } from "./engine";
 import type { PropsFacade, PropsPort } from "@proto-ui/module-props";
 import { createTimeline } from "./timeline";
 import { EventPort } from "@proto-ui/module-event";
-import { __RT_EVENT_REGISTRY } from "../handles";
+import { __RT_EVENT_CALLBACKS } from "../event";
 
 export function executeWithHost<P extends PropsBaseType>(
   proto: Prototype<P>,
@@ -55,7 +55,7 @@ export function executeWithHost<P extends PropsBaseType>(
 
     timeline.mark("instance:reachable");
     const eventPort = moduleHub.getPort<EventPort>("event");
-    const eventRegistry = (moduleHub as any)[__RT_EVENT_REGISTRY] as
+    const eventRegistry = (moduleHub as any)[__RT_EVENT_CALLBACKS] as
       | { dispatch: (run: RunHandle<P>, id: string, ev: any) => void }
       | undefined;
 
@@ -149,7 +149,7 @@ export function executeWithHost<P extends PropsBaseType>(
 
     const eventPort = moduleHub.getPort<EventPort>("event");
     eventPort?.unbind?.();
-    const eventRegistry = (moduleHub as any)[__RT_EVENT_REGISTRY] as
+    const eventRegistry = (moduleHub as any)[__RT_EVENT_CALLBACKS] as
       | { clear: () => void }
       | undefined;
 

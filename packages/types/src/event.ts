@@ -33,13 +33,16 @@ export type EventListenerOptions = any;
 
 declare const __eventTokenBrand: unique symbol;
 
+export type EventTokenMeta = {
+  kind: "root" | "global";
+  type: string;
+  options?: unknown;
+  label?: string; // dev-only, set by desc()
+};
+
 export type EventListenerToken = {
   readonly [__eventTokenBrand]: "EventListenerToken";
   readonly id: string;
-
-  /**
-   * Dev-only description for diagnostics.
-   * In prod, this should be a no-op that returns itself.
-   */
+  readonly meta: Readonly<EventTokenMeta>;
   desc(text: string): EventListenerToken;
 };

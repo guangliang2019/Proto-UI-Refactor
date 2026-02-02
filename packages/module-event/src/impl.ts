@@ -75,22 +75,37 @@ export class EventModuleImpl extends ModuleBase {
     this.sys?.ensureRuntime(op);
   }
 
-  private makeToken(id: string): EventListenerToken {
+  private makeToken(
+    id: string,
+    kind: "root" | "global",
+    type: EventTypeV0,
+    options?: any
+  ): EventListenerToken {
+    const meta = {
+      kind,
+      type: String(type),
+      options, // optional: 也可以只放 shallow clone / 或省略
+      label: undefined as string | undefined,
+    };
+
     const token: EventListenerToken = {
       id,
+      meta,
       [Symbol.for("__eventTokenBrand")]: "EventListenerToken",
       desc: (text: string) => {
         this.ensureSetup("def.event.token.desc");
-
         const __DEV__ = true;
         if (__DEV__) {
-          if (typeof text === "string" && text.trim()) {
-            this.kernel.setLabel(id, text.trim());
+          const t = typeof text === "string" ? text.trim() : "";
+          if (t) {
+            meta.label = t; // ✅ token 自身可读
+            this.kernel.setLabel(id, t); // ✅ diagnostics 仍可用
           }
         }
         return token;
       },
     } as any;
+
     return token;
   }
 
@@ -109,18 +124,18 @@ export class EventModuleImpl extends ModuleBase {
     this.ensureSetup("def.event.on");
     this.guardArgs(type);
     const id = this.kernel.on("root", type, options);
-    return this.makeToken(id);
+    return this.makeToken(id, "root", type, options);
   }
 
   onGlobal(type: EventTypeV0, options?: any): EventListenerToken {
     this.ensureSetup("def.event.onGlobal");
     this.guardArgs(type);
     const id = this.kernel.on("global", type, options);
-    return this.makeToken(id);
+    return this.makeToken(id, "global", type, options);
   }
 
-  offToken(token: EventListenerToken) {
-    this.ensureSetup("def.event.offToken");
+  off(token: EventListenerToken) {
+    this.ensureSetup("def.event.off");
     const id = (token as any)?.id;
     if (typeof id !== "string" || !id) {
       throw illegalEventArg(`[Event] invalid token.`, {
@@ -129,18 +144,6 @@ export class EventModuleImpl extends ModuleBase {
       });
     }
     this.kernel.offById(id);
-  }
-
-  offLatest(kind: "root" | "global", type: EventTypeV0, options?: any) {
-    this.ensureSetup("def.event.offLatest");
-    if (kind !== "root" && kind !== "global") {
-      throw illegalEventArg(
-        `[Event] invalid kind for offLatest: ${String(kind)}`,
-        { prototypeName: this.prototypeName, kind }
-      );
-    }
-    this.guardArgs(type);
-    this.kernel.offLatest(kind, type, options);
   }
 
   // -------------------------

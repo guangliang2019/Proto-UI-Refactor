@@ -1,272 +1,282 @@
-# internal/contracts/event/event.v0.md
+# Event Contract (v0)
 
-> **Status**: Draft – implementation-ready (contract-first)
+> **Status**: Draft – implementation-ready (contract-first)  
 > **Version**: v0
 >
-> This document specifies the **Proto UI Event information flow**:
-> setup-time registration semantics, runtime callback guarantees, binding rules,
-> lifecycle cleanup, and the observable behavior exposed via `def.event`.
+> This document defines the **Proto UI Event information flow contract**:
+> setup-time registration semantics, runtime callback guarantees, binding timing,
+> lifecycle cleanup rules, and the observable behavior exposed via `def.event`.
+>
+> This document is **normative**.
 
 ---
 
 ## Layering Note (Normative)
 
-This contract specifies the **event information flow as observed by prototype authors**
-via `def.event`.
+This contract describes the **observable behavior and guarantees**
+available to Component Authors through `def.event`.
 
-It does **not** prescribe the internal structure, storage model, or port signatures
-of any specific event module implementation.
+It does **not** prescribe:
 
-In particular:
+- the internal data structures of the event module
+- how registrations or dispatch are stored
+- how the runtime associates `run` with a dispatched event
+- how adapters implement event proxying or delegation
 
-- This contract defines _what_ must happen (observable behavior and guarantees),
-  not _how_ event dispatch is internally implemented.
-- Module-level APIs (e.g. binding ports, dispatch indirection, target resolution)
-  are considered implementation details unless explicitly stated otherwise.
+In other words:
+
+- This contract specifies **what must happen**
+- Not **how it must be implemented**
 
 ---
 
 ## 0. Scope & Non-goals
 
-### 0.1 Scope
+### 0.1 Scope (v0)
 
-Event provides:
+In v0, the Event module provides:
 
-- setup-only APIs to register and unregister event listeners
-- setup-only **listener tokens** to precisely identify individual registrations
-- runtime-only callback invocation with a stable signature
-- default binding to the component instance’s root interaction target
-- optional adapter-defined global event bindings
-- automatic cleanup on unmount
-- optional dev-only diagnostics labeling
+- setup-only APIs for event registration and removal
+- precise and stable listener token semantics
+- runtime-only callback invocation guarantees
+- default binding to the component instance’s **root interaction target**
+- adapter-defined **global interaction targets**
+- automatic cleanup on component unmount
+- optional development-time diagnostic labeling
 
-### 0.2 Non-goals (v0)
+### 0.2 Non-goals (Explicitly Out of Scope for v0)
 
-The following are explicitly out of scope for v0:
+The following are **not goals of v0**:
 
-- gesture abstractions (drag / pinch / etc.) as first-class APIs
+- gesture abstractions (drag / pinch / etc.)
 - automatic event-to-rule compilation
-- event deduplication or listener coalescing
-- exposing concrete adapter targets (e.g. `window`, `document`) in the facade
+- event deduplication or coalescing
+- exposing concrete host objects (e.g. `window`, `document`) to Component Authors
 - runtime-time dynamic subscription management (`run.event.*`)
-- prescribing a specific internal event module architecture
+- prescribing a specific internal architecture for the event module
 
 ---
 
 ## 1. Terminology
 
-- **Root target**
-  The component instance’s primary interaction subject, as defined by the adapter.
+- **Root Target**  
+  The primary interaction subject of a component instance, as defined by the adapter.
 
-- **Global target**
-  An adapter-defined host-global event target.
+- **Global Target**  
+  An adapter-defined host-global interaction target.
 
-- **Native event**
-  A platform event object (Web: `Event`, `PointerEvent`, etc.).
+- **Native Event**  
+  A platform-provided event object (e.g. Web `Event`, `PointerEvent`).
 
-- **ProtoEvent**
-  A portable semantic event name with minimum guarantees defined by Proto UI.
+- **Proto Event Type**  
+  A Proto UI–defined event type string with guaranteed semantics.
 
 ---
 
-## 2. API Surface and Phases
+## 2. API Surface and Phase Constraints
 
-### 2.1 Setup-only registration
+### 2.1 Setup-only Registration APIs
 
-Event registration APIs are **setup-only**:
+The following APIs are **setup-only**:
 
 - `def.event.on(type, cb, options?) => EventListenerToken`
-- `def.event.off(type, cb, options?)`
 - `def.event.onGlobal(type, cb, options?) => EventListenerToken`
-- `def.event.offGlobal(type, cb, options?)`
-- `def.event.offToken(token)`
+- `def.event.off(token) => void`
 
-Rules (normative):
+#### Normative Rules
 
-- Any attempt to call these APIs after setup **MUST throw** a phase-violation error.
-- Each call to `on` / `onGlobal` **MUST create a new registration entry**.
-- Registrations **MUST NOT be deduplicated**.
+1. Any attempt to call these APIs after setup **MUST throw** a phase-violation error.
+2. Each call to `on` / `onGlobal` **MUST create a new registration entry**.
+3. Registrations **MUST NOT** be deduplicated or merged.
 
-### 2.2 Runtime-only callbacks
+---
 
-Registered callbacks are invoked **only during the runtime callback phase**.
+### 2.2 Runtime-only Callback Semantics
 
-Callback signature MUST be:
+All callbacks registered via `def.event`:
 
-```
+- **MUST be invoked only during the runtime callback phase**
+- MUST NOT be invoked during setup, render, commit, or other phases
+
+#### Callback Signature (Normative)
+
+```ts
 cb(run, ev) => void
 ```
 
 Where:
 
-- `run` is the runtime handle (always the first parameter)
-- `ev` is a native or host-defined event object
+- `run` is the runtime handle (**always the first argument**)
+- `ev` is the host- or platform-provided event object
 
-#### Layering constraint (Normative)
+#### Layering Constraint (Normative)
 
 - The presence of `run` in the callback signature is a requirement of the
-  **event information flow**, not of any specific event module.
-- Event modules **MUST NOT** be required to store, construct, or reason about
-  runtime handles.
-- The mechanism by which `run` is associated with a callback invocation
-  (e.g. dispatch indirection, identifier lookup) is a responsibility of the runtime.
+  **event information flow**, not of any specific event module implementation.
+- Event modules **MUST NOT** be required to understand, construct,
+  or reason about runtime handles.
+- Associating the correct `run` handle with a dispatched event
+  is the responsibility of the runtime.
 
 ---
 
 ## 3. Binding Targets and Timing
 
-### 3.1 Root target (default)
+### 3.1 Root Target (Default)
 
-- `def.event.on(...)` registrations bind to the component instance’s **root target**
-  by default.
-- The root target represents the instance’s primary interaction subject.
+- Registrations made via `def.event.on(...)` bind to the **Root Target** by default.
+- The Root Target represents the component instance’s primary interaction subject.
 
-### 3.2 Global target (adapter-defined)
+### 3.2 Global Target (Adapter-defined)
 
-- `def.event.onGlobal(...)` registrations bind to an adapter-defined **global target**.
+- Registrations made via `def.event.onGlobal(...)` bind to a **Global Target**.
 - The event facade **MUST NOT** expose or allow selection of the concrete global target.
 
-> _Non-normative note:_
+> _Informative note:_
 > Web adapters commonly choose `window` as the global target.
 
-### 3.3 Binding time and no-registrations rule (Normative)
+---
 
-Event listeners are bound by the runtime at a well-defined safe point
-after the component instance becomes reachable.
+### 3.3 Binding Time and the “No Registrations” Rule (Normative)
 
-If there are **no registered listeners** (neither root nor global):
+Event listeners are bound by the runtime at a well-defined safe point.
 
-- The binding step **MUST be a no-op**.
-- The binding step **MUST NOT** require any event targets to exist.
-- The binding step **MUST NOT** read adapter or host targets in a way that can throw.
+#### If there are no registrations:
 
-If there are registered listeners:
+- The binding step **MUST be a no-op**
+- It **MUST NOT** read or access any targets
+- It **MUST NOT** throw due to missing targets
 
-- A root target **MUST be required only if** at least one root registration exists.
-- A global target **MUST be required only if** at least one global registration exists.
+#### If registrations exist:
+
+- A root target is required **only if** at least one root-scoped registration exists
+- A global target is required **only if** at least one global registration exists
 
 > _Informative:_
-> Runtimes MAY perform the binding step unconditionally; prototypes with no
-> registrations must not be penalized.
+> Runtimes MAY perform binding unconditionally, but components with no registrations
+> must not incur cost or risk.
 
 ---
 
-### 3.4 Root target redirection (v0)
+## 4. Listener Model and Token Semantics
 
-Event systems MUST support redirecting the **root binding target** during setup.
+### 4.1 No Deduplication
 
-Rules (normative):
-
-- Root target redirection **MUST be setup-only**.
-- The redirected target **MUST** be used for all root-scoped registrations.
-- Global registrations **MUST NOT** be affected.
-- Any attempt to redirect the root target after setup **MUST throw**
-  a phase-violation error.
-- Once setup completes, the resolved root target **MUST remain stable**
-  for the lifetime of the component instance.
-
-> _Rationale (informative):_
-> This enables composition patterns where interaction responsibility is delegated
-> to a specific sub-host without exposing adapter-specific details.
+- Event registrations **MUST NOT** be deduplicated
+- Multiple identical registrations represent multiple distinct listeners
 
 ---
 
-## 4. Listener Registration Model
+### 4.2 EventListenerToken (Core Mechanism)
 
-### 4.1 Options compatibility
+Each call to `on` / `onGlobal` **MUST return an EventListenerToken**.
 
-Listener `options` MUST align with the host platform’s listener options shape
-when applicable (Web: `capture`, `passive`, `once`).
+#### Minimum Requirements (Normative)
 
-### 4.2 Off matching rule
+A token MUST include:
 
-- `off` / `offGlobal` MUST remove listeners by exact matching of:
+- `id: string` — stable and unique within the component instance
 
-  - event `type`
-  - callback reference `cb`
-  - listener `options` (host-equivalent matching)
+Additional fields MAY exist as long as they do not affect runtime behavior.
 
-- Each call MUST remove **exactly one** matching registration entry.
-- Latest-first removal is RECOMMENDED.
+---
 
-#### Layering constraint (Normative)
+### 4.3 Precise Removal (Only Removal Mechanism)
 
-- Matching semantics involving callback identity and option equivalence
-  are defined at the `def.event` level.
-- Event modules MAY operate on opaque registration identifiers and are not
-  required to store or compare callback references.
-
-### 4.3 No deduplication
-
-- Event registration MUST NOT deduplicate.
-- Multiple identical registrations MUST result in multiple listener entries
-  (host behavior permitting).
-
-### 4.4 Listener tokens
-
-Each call to `on` / `onGlobal` MUST return an `EventListenerToken`
-identifying the exact registration entry created by that call.
-
-#### 4.4.1 Token shape (minimum)
-
-An `EventListenerToken` MUST include:
-
-- a stable opaque `id: string`
-
-Additional fields or methods MAY exist as long as they do not affect runtime behavior.
-
-#### 4.4.2 Precise removal via token
-
-- `def.event.offToken(token)` MUST remove exactly the identified registration entry.
-- If the entry is currently bound, it **MUST be detached immediately**.
+- `def.event.off(token)` **MUST remove exactly the registration identified by the token**
+- If the listener is currently bound, it **MUST be detached immediately**
 - Passing an unknown or already-removed token **MUST be a no-op**
-  (except for invalid argument shape).
+- Invalid token shapes **MUST throw** an `EVENT_INVALID_ARGUMENT` error
 
-### 4.5 Token description / diagnostics labeling (dev-only)
+> v0 explicitly specifies:
+> **There is no removal API based on `(type, cb, options)`**.
+> All removal MUST be token-based.
 
-Tokens MAY provide a fluent diagnostic labeling API:
+---
 
-```
+### 4.4 Token Diagnostics Labeling (Development-only)
+
+Tokens MAY provide a diagnostic labeling API:
+
+```ts
 token.desc(text) => EventListenerToken
 ```
 
-Rules:
+Normative rules:
 
-- `desc()` MUST be setup-only.
-- Calls after setup MUST throw a phase-violation error.
-- In production builds, `desc()` MAY be a no-op but MUST remain callable
-  and return the same token instance.
+1. `desc()` **MUST be setup-only**
+2. Calls after setup **MUST throw** a phase-violation error
+3. In production builds, `desc()` MAY be a no-op, but:
 
----
-
-## 5. Automatic Cleanup
-
-- All listeners registered via `def.event.on` and `def.event.onGlobal`
-  MUST be automatically removed when the component instance unmounts.
-- Manual removal APIs MAY remove listeners earlier but are not required
-  for correctness.
+   - it MUST remain callable
+   - it MUST return the same token instance
 
 ---
 
-## 6. Event Types (ProtoEvent Union, v0)
+## 5. Lifecycle and Automatic Cleanup
 
-_(unchanged)_
+- All listeners registered via `def.event`:
+
+  - **MUST be automatically removed when the component instance unmounts**
+
+- Manual removal via `off(token)` MAY remove listeners earlier,
+  but is not required for correctness
 
 ---
 
-## 7. Error Model
+## 6. Event Type System (v0)
 
-Implementations MUST throw for:
+Event uses `EventTypeV0` as its event type universe.
 
-- phase violations (setup-only or runtime-only misuse)
-- binding failures (required targets unavailable)
-- invalid arguments (empty type, non-function callback, invalid token)
+- The full definition of `EventTypeV0` is **not included in this document**
+- Its normative definition lives in:
+  `internal/contracts/event/event-types.v0.md`
 
-### 7.1 Error typing (minimum)
+This document only requires that:
 
-Errors MUST be distinguishable by type or code.
+- Implementations MUST reject invalid event type strings
+- Unsupported but valid event types MUST follow the behavior defined
+  in the event-types contract
 
-Recommended codes (v0):
+---
+
+## 7. Target Mutation and Interaction Proxying (System-level Capability)
+
+> This section describes **infrastructure-level requirements**
+> and **does not expose any API to Component Authors**.
+
+### 7.1 Design Intent
+
+The event system MUST be able to correctly handle:
+
+- root / global target replacement during an instance’s lifetime
+- host nodes being replaced or reconstructed
+- interaction events being proxied, merged, or delegated
+
+### 7.2 Normative Requirements (v0)
+
+1. If the event system is bound and the target changes:
+
+   - subsequent bindings **MUST refer to the new target**
+
+2. This behavior MUST be completely transparent to Component Authors
+3. Component Authors MUST NOT and MUST NOT need to manage target changes
+4. The implementation strategy is not prescribed
+   (rebinding, stable wrappers, delegation, etc. are all valid)
+
+---
+
+## 8. Error Model
+
+Implementations **MUST throw errors** for:
+
+- phase violations of setup-only APIs
+- binding when required targets are unavailable
+- invalid arguments (invalid types, malformed tokens, etc.)
+
+### 8.1 Error Classification (Minimum)
+
+Recommended error codes:
 
 - `EVENT_PHASE_VIOLATION`
 - `EVENT_TARGET_UNAVAILABLE`
@@ -276,13 +286,17 @@ Recommended codes (v0):
 
 ## Appendix A: Contract Coverage (Informative)
 
-This contract is enforced by executable contract tests covering:
+This contract is enforced by executable contract tests, including:
 
-- no-registrations binding behavior
-- target availability requirements
-- immediate detachment on `offToken`
+- no-registration binding no-op behavior
+- root / global target availability constraints
+- precise token-based removal semantics
 - automatic cleanup on unmount
-- setup-only and runtime-only phase enforcement
-- root target redirection semantics
+- setup / runtime phase enforcement
+- correct rebinding after target changes
 
-See `packages/module-event/test/contract/` for executable specifications.
+Executable tests live under:
+
+```
+packages/module-event/test/contract/
+```

@@ -14,24 +14,7 @@ export type EventFacade = {
   ): EventListenerToken;
 
   /** precise removal */
-  offToken(token: EventListenerToken): void;
-
-  /**
-   * Optional helper (still setup-only):
-   * remove ONE latest matching entry by (kind,type,options) without knowing cb.
-   * You can omit this if runtime will keep its own map.
-   */
-  offLatest?(
-    kind: "root" | "global",
-    type: EventTypeV0,
-    options?: EventListenerOptions
-  ): void;
-
-  /**
-   * Setup-only: redirect all "root" bindings to a specified target-like.
-   * Does NOT affect global registrations.
-   */
-  redirectRoot(target: EventTarget): void;
+  off(token: EventListenerToken): void;
 };
 
 export type EventModule = ModuleInstance<EventFacade> & {
@@ -51,6 +34,12 @@ export type EventPort = ModulePort & {
 
   /** Optional diagnostics hook */
   getDiagnostics?(): readonly EventDiag[];
+
+  /**
+   * Setup-only: redirect all "root" bindings to a specified target-like.
+   * Does NOT affect global registrations.
+   */
+  redirectRoot(target: EventTarget): void;
 };
 
 export type EventDiag = {

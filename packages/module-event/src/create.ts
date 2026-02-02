@@ -20,10 +20,7 @@ export function createEventModule(ctx: ModuleFactoryArgs): EventModule {
         facade: {
           on: (type, options) => impl.on(type, options),
           onGlobal: (type, options) => impl.onGlobal(type, options),
-          offToken: (token) => impl.offToken(token),
-          offLatest: (kind, type, options) =>
-            impl.offLatest(kind, type, options),
-          redirectRoot: (target) => impl.redirectRoot(target),
+          off: (token) => impl.off(token),
         },
         hooks: {
           onProtoPhase: (p) => impl.onProtoPhase(p),
@@ -32,6 +29,7 @@ export function createEventModule(ctx: ModuleFactoryArgs): EventModule {
           bind: (dispatch) => impl.bind(dispatch),
           unbind: () => impl.unbind(),
           getDiagnostics: () => impl.getDiagnostics(),
+          redirectRoot: (target) => impl.redirectRoot(target),
         },
       };
     },

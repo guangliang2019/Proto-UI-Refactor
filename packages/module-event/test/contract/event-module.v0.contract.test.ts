@@ -139,7 +139,7 @@ describe("event-module: contract v0 (module semantics)", () => {
     expect(calls[0]![1]).toMatchObject({ type: "native:click", x: 1 });
   });
 
-  it("EV-MOD-V0-1400: offToken() MUST detach immediately if currently bound", () => {
+  it("EV-MOD-V0-1400: off() MUST detach immediately if currently bound", () => {
     const sys = createSysCaps();
     const root = createMockTarget("root");
 
@@ -162,7 +162,7 @@ describe("event-module: contract v0 (module semantics)", () => {
 
     // setup-only removal
     sys.__setExecPhase("setup");
-    impl.offToken(token);
+    impl.off(token);
 
     expect(root.__count("native:click")).toBe(0);
 

@@ -79,22 +79,12 @@ export interface DefHandle<Props extends PropsBaseType> {
       cb: ProtoEventCallback<Props>,
       options?: EventListenerOptions
     ): EventListenerToken;
-    off(
-      type: EventTypeV0,
-      cb: ProtoEventCallback<Props>,
-      options?: EventListenerOptions
-    ): void;
+    off(token: EventListenerToken): void;
     onGlobal(
       type: EventTypeV0,
       cb: ProtoEventCallback<Props>,
       options?: EventListenerOptions
     ): EventListenerToken;
-    offGlobal(
-      type: EventTypeV0,
-      cb: ProtoEventCallback<Props>,
-      options?: EventListenerOptions
-    ): void;
-    offToken(token: EventListenerToken): void;
   };
 
   state: StateDefAPI;

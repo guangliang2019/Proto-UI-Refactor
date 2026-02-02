@@ -116,7 +116,7 @@ During `setup`:
 ### 2.3 Allowed operations (non-exhaustive)
 
 - `def.state.*` (state slot definition)
-- `def.event.on / onGlobal / off / offToken`
+- `def.event.on / onGlobal / off`
 - `def.lifecycle.onCreated / onMounted / onUnmounted`
 - returning the render function
 

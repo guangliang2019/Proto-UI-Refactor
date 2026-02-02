@@ -1,3 +1,4 @@
+// packages/module-event/src/caps.ts
 import { cap } from "@proto-ui/core";
 
 export type EventTargetGetter = () => EventTarget | null;
