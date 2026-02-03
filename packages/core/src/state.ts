@@ -1,12 +1,12 @@
 // packages/core/src/state.ts
 // ---- Component-author side handles (governed by Proto UI) ----
 import {
-  EnumStateSpec,
-  NumberDiscreteStateSpec,
-  NumberRangeStateSpec,
+  EnumStateDefineSpec,
+  NumberDiscreteStateDefineSpec,
+  NumberRangeStateDefineSpec,
   PropsBaseType,
   StateSetReason,
-  StringStateSpec,
+  StringStateDefineSpec,
 } from "@proto-ui/types";
 import { StateSubscribeCallback, StateWatchCallback } from "./handles";
 
@@ -55,7 +55,7 @@ export interface StateDefAPI {
   enum<const O extends readonly string[]>(
     semantic: string,
     defaultValue: O[number],
-    spec: EnumStateSpec<O>
+    spec: EnumStateDefineSpec<O>
   ): OwnedStateHandle<O[number]>;
 
   /**
@@ -65,18 +65,18 @@ export interface StateDefAPI {
   string(
     semantic: string,
     defaultValue: string,
-    spec?: StringStateSpec
+    spec?: StringStateDefineSpec
   ): OwnedStateHandle<string>;
 
   numberRange(
     semantic: string,
     defaultValue: number,
-    spec: NumberRangeStateSpec
+    spec: NumberRangeStateDefineSpec
   ): OwnedStateHandle<number>;
 
   numberDiscrete(
     semantic: string,
     defaultValue: number,
-    spec: NumberDiscreteStateSpec
+    spec?: NumberDiscreteStateDefineSpec
   ): OwnedStateHandle<number>;
 }

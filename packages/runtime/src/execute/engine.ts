@@ -1,4 +1,3 @@
-// packages/runtime/src/execute/engine.ts
 import {
   createRendererPrimitives,
   Phase,
@@ -103,6 +102,7 @@ export function createEngine<P extends PropsBaseType>(
     }
     runUpdateImpl();
   }, moduleHub);
+
   // add test-sys to run handle, for contract tests
   const testSys = moduleHub.getPort<TestSysPort>("test-sys");
   if (testSys) {
@@ -152,13 +152,20 @@ export function createEngine<P extends PropsBaseType>(
 
     phase = "callback";
 
-    // before callbacks, pull latest raw then dispatch watches
-    propsPort?.syncFromHost();
-    dispatchPropsTasks();
+    // set callback ctx for modules via SYS_CAP.getCallbackCtx()
+    (moduleHub as any).__setCallbackCtx?.(run);
 
-    for (const cb of lifecycle[kind]) cb(run);
+    try {
+      // before callbacks, pull latest raw then dispatch watches
+      propsPort?.syncFromHost();
+      dispatchPropsTasks();
 
-    phase = "unknown";
+      for (const cb of lifecycle[kind]) cb(run);
+    } finally {
+      // clear ctx to avoid accidental leakage
+      (moduleHub as any).__setCallbackCtx?.(undefined);
+      phase = "unknown";
+    }
   };
 
   return {

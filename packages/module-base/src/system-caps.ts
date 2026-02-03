@@ -1,4 +1,3 @@
-// packages/module-base/src/system-caps.ts
 import { cap, type ProtoPhase } from "@proto-ui/core";
 
 export type ExecPhase = "setup" | "render" | "callback" | "unknown";
@@ -30,6 +29,15 @@ export interface SystemCaps {
    * This prevents render-phase mutations.
    */
   ensureCallback(op: string): void;
+
+  /**
+   * Runtime callback context (opaque).
+   *
+   * - In engine-driven execution, this will typically be `run`.
+   * - Outside callback phase, it should return `undefined`.
+   * - State/event modules MUST treat it as unknown and not depend on its shape.
+   */
+  getCallbackCtx(): unknown;
 }
 
 export const SYS_CAP = cap<SystemCaps>("@proto-ui/__sys");

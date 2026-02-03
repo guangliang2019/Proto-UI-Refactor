@@ -1,4 +1,3 @@
-// packages/module-state/src/kernel.ts
 import type { OwnedStateHandle } from "@proto-ui/core";
 import type { StateEvent, StateSetReason, StateSpec } from "@proto-ui/types";
 
@@ -105,15 +104,8 @@ export class StateKernel {
     rec.value = next;
 
     const emit = () => {
-      // StateEvent shape comes from @proto-ui/types; we fill common fields.
-      // If your StateEvent requires different fields, adjust here.
-      const e = {
-        prev,
-        next,
-        reason,
-        semantic: rec.semantic,
-      } as unknown as StateEvent<V>;
-
+      // Align with @proto-ui/types StateEvent<V> union
+      const e: StateEvent<V> = { type: "next", prev, next, reason };
       for (const cb of rec.subscribers) cb(e);
     };
 

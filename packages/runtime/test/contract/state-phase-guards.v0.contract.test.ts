@@ -7,16 +7,21 @@ import type { RuntimeHost } from "../../src/host";
 /**
  * Runtime Contract (v0): phase guards for OwnedStateHandle APIs
  *
- * v0 alignment with current kernel:
- * - Owned handle does NOT require runtime-only set.
- * - Therefore, we only assert guards that are meaningful now:
- *   - setDefault should be allowed in setup (setup-only is a policy; kernel allows it anytime, but we treat it as setup-intent)
+ * This file asserts the *runtime-enforced* phase policy for owned state:
+ * - setup phase:
+ *   - `setDefault()` allowed
+ *   - `set()` MUST throw
+ * - runtime callback phase (e.g. created/mounted/updated/unmounted):
+ *   - `set()` allowed
+ *   - `setDefault()` MUST throw
  *
- * If you later decide to add real guards in module facade (recommended),
- * flip this contract back to "set throws in setup / setDefault throws in runtime".
+ * Notes:
+ * - The kernel itself is intentionally phase-agnostic; it accepts operations anytime.
+ * - Phase enforcement is a runtime/module concern (SystemCaps / exec-phase guard / module wrapper).
+ * - This contract intentionally does NOT cover watch/borrowed/observed/exposed projections.
  */
 describe("runtime contract: state phase guards (v0)", () => {
-  it("v0: set is allowed in setup; setDefault is allowed in setup; both usable in created", () => {
+  it("owned handle phase guards: setDefault setup-only; set runtime-only", () => {
     const host: RuntimeHost<any> = {
       prototypeName: "x-runtime-state-guards",
       getRawProps() {
@@ -35,10 +40,12 @@ describe("runtime contract: state phase guards (v0)", () => {
       setup(def) {
         s = def.state.bool("open", false);
 
+        // setup: set must throw; setDefault allowed
         expect(() => s.set(true)).toThrow();
         expect(() => s.setDefault(false)).not.toThrow();
 
         def.lifecycle.onCreated(() => {
+          // runtime callback: set allowed; setDefault must throw
           expect(() => s.setDefault(true)).toThrow();
           expect(() => s.set(true)).not.toThrow();
         });

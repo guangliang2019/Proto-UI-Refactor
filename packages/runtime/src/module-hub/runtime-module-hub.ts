@@ -1,4 +1,3 @@
-// packages/runtime/src/module-hub/runtime-module-hub.ts
 import type { ModuleFacade, ProtoPhase } from "@proto-ui/core";
 import type { CapEntries } from "@proto-ui/core";
 import {
@@ -36,6 +35,9 @@ export class RuntimeModuleHub implements ModuleHub {
   private facades: Record<string, ModuleFacade> = {};
   private ports: Record<string, any> = {};
 
+  // runtime-owned callback ctx (opaque)
+  private callbackCtx: unknown = undefined;
+
   constructor(
     init: { prototypeName: string; getPhase: () => ExecPhase },
     modules: ModuleDecl[]
@@ -66,9 +68,7 @@ export class RuntimeModuleHub implements ModuleHub {
         if (!ex.includes(actual)) {
           fail(
             `exec-phase violation: ${this.prototypeName} op=${op} ` +
-              `expected=${ex.join("|")} actual=${actual} protoPhase=${
-                this.protoPhase
-              }`
+              `expected=${ex.join("|")} actual=${actual} protoPhase=${this.protoPhase}`
           );
         }
       },
@@ -90,6 +90,16 @@ export class RuntimeModuleHub implements ModuleHub {
       ensureCallback: (op) => {
         sys.ensureExecPhase(op, "callback");
       },
+
+      getCallbackCtx: () => {
+        // only meaningful in callback phase; otherwise return undefined
+        return this.getExecPhase() === "callback" ? this.callbackCtx : undefined;
+      },
+    };
+
+    // internal private hook for runtime only (NOT part of SystemCaps)
+    (sys as any).__setCallbackCtx = (ctx: unknown) => {
+      this.callbackCtx = ctx;
     };
 
     for (const m of modules) {
@@ -197,12 +207,28 @@ export class RuntimeModuleHub implements ModuleHub {
   }
 
   // -------------------------
+  // runtime internal: callback ctx
+  // -------------------------
+
+  /**
+   * Runtime-only helper: set callback ctx for modules to consume via SYS_CAP.getCallbackCtx().
+   * This is intentionally not part of ModuleHub interface and not visible to modules directly.
+   */
+  __setCallbackCtx(ctx: unknown): void {
+    // SYS_CAP is already attached and stable; we mutate runtime-owned field
+    this.callbackCtx = ctx;
+  }
+
+  // -------------------------
   // lifecycle
   // -------------------------
 
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
+
+    // best-effort clear callback ctx
+    this.callbackCtx = undefined;
 
     // dispose hooks first so modules can teardown while caps still readable (sys still available)
     for (const r of this.records) {

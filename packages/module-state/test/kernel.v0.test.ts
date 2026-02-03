@@ -22,7 +22,10 @@ describe("state-kernel.v0", () => {
 
     const events: Array<{ prev: number; next: number }> = [];
     k.subscribe(h, (e: any) => {
-      events.push({ prev: e.prev, next: e.next });
+      // kernel emits only "next" events in v0
+      if (e?.type === "next") {
+        events.push({ prev: e.prev, next: e.next });
+      }
     });
 
     h.setDefault(1);
@@ -73,6 +76,7 @@ describe("state-kernel.v0", () => {
     const seq: number[] = [];
 
     k.subscribe(h, (e: any) => {
+      if (e?.type !== "next") return;
       seq.push(e.next);
       if (e.next === 1) {
         // re-entrant set

@@ -1,15 +1,14 @@
-// packages/module-state/src/create.ts
 import { createModule } from "@proto-ui/module-base";
 import type { ModuleFactoryArgs } from "@proto-ui/module-base";
 import { SYS_CAP } from "@proto-ui/module-base";
 
 import { StateModuleImpl } from "./impl";
-import type { StateFacade, StateModule } from "./types";
+import type { StateFacade, StateModule, StatePort } from "./types";
 
 export function createStateModule(ctx: ModuleFactoryArgs): StateModule {
   const { init, caps } = ctx;
 
-  return createModule<"state", "instance", StateFacade>({
+  return createModule<"state", "instance", StateFacade, StatePort>({
     name: "state",
     scope: "instance",
     init,
@@ -20,10 +19,10 @@ export function createStateModule(ctx: ModuleFactoryArgs): StateModule {
 
       return {
         facade: impl.facade,
+        port: impl.port,
         hooks: {
           dispose: () => impl.dispose(),
         },
-        // no port in v0
       };
     },
   });

@@ -1,111 +1,325 @@
-// packages/module-state/src/impl.ts
 import type { OwnedStateHandle } from "@proto-ui/core";
 import type { SystemCaps } from "@proto-ui/module-base";
-import type { StateSetReason } from "@proto-ui/types";
+import type { StateEvent, StateSetReason } from "@proto-ui/types";
 
 import { StateKernel } from "./kernel";
-import type { StateFacade } from "./types";
+import type {
+  InternalStateWatchCallback,
+  StateFacade,
+  StatePort,
+} from "./types";
 
 function opOf(semantic: string, method: string) {
   return `state(${semantic}).${method}`;
 }
 
-function wrapOwnedHandle<V>(
-  raw: OwnedStateHandle<V>,
-  sys: SystemCaps,
-  semantic: string
-): OwnedStateHandle<V> {
-  const wrapped: OwnedStateHandle<V> = {
-    get: () => {
-      sys.ensureNotDisposed(opOf(semantic, "get"));
-      return raw.get();
-    },
-
-    setDefault: (v) => {
-      sys.ensureSetup(opOf(semantic, "setDefault"));
-      return raw.setDefault(v);
-    },
-
-    set: (v, reason?: StateSetReason) => {
-      sys.ensureCallback(opOf(semantic, "set"));
-      return raw.set(v, reason);
-    },
-  };
-
-  (wrapped as any).__stateId = (raw as any).__stateId;
-  (wrapped as any).__stateSemantic = (raw as any).__stateSemantic ?? semantic;
-  (wrapped as any).__stateKind = (raw as any).__stateKind;
-
-  return wrapped;
+function getIdFromHandle(handle: OwnedStateHandle<any>): number {
+  const id = (handle as any).__stateId as number | undefined;
+  if (!id)
+    throw new Error(`[StateModule] expects handle created by state-kernel`);
+  return id;
 }
 
 export class StateModuleImpl {
   readonly kernel = new StateKernel();
   private disposed = false;
 
+  /**
+   * watchersById stores internal watchers that need ctx injection.
+   * We keep it in module layer to avoid coupling kernel to runtime context.
+   */
+  private watchersById = new Map<
+    number,
+    Set<InternalStateWatchCallback<any>>
+  >();
+
+  /**
+   * For each state slot id that has at least one watcher, we keep exactly one kernel subscription
+   * and fan-out to watchersById.
+   */
+  private kernelOffById = new Map<number, () => void>();
+
+  /**
+   * ctx stack for nested set() calls (re-entrant set in watch callbacks, etc.)
+   * kernel already queues emits deterministically; this stack ensures we always forward
+   * the correct ctx for the current "set chain".
+   */
+  private ctxStack: unknown[] = [];
+
   constructor(private readonly sys: SystemCaps) {}
+
+  // -----------------------
+  // internal guards
+  // -----------------------
+
+  private ensureAlive(op: string): void {
+    this.sys.ensureNotDisposed(op);
+    if (this.disposed) {
+      // Important: module-local disposed must also block usage even if runtime sys isn't disposed yet.
+      throw new Error(`[StateModule] disposed. op=${op}`);
+    }
+  }
+
+  private getCallbackCtx(): unknown {
+    return (
+      (this.sys as any).getCallbackCtx?.() ??
+      (this.sys as any).getCurrentCallbackCtx?.() ??
+      (this.sys as any).getRun?.() ??
+      undefined
+    );
+  }
+
+  // -----------------------
+  // ctx helpers
+  // -----------------------
+
+  private withCtx<T>(ctx: unknown, fn: () => T): T {
+    this.ctxStack.push(ctx);
+    try {
+      return fn();
+    } finally {
+      this.ctxStack.pop();
+    }
+  }
+
+  private currentCtx(): unknown {
+    return this.ctxStack.length
+      ? this.ctxStack[this.ctxStack.length - 1]
+      : undefined;
+  }
+
+  // -----------------------
+  // watcher plumbing
+  // -----------------------
+
+  private ensureKernelForwarder<V>(
+    id: number,
+    handle: OwnedStateHandle<V>
+  ): void {
+    if (this.kernelOffById.has(id)) return;
+
+    const off = this.kernel.subscribe(handle, (e: StateEvent<V>) => {
+      const watchers = this.watchersById.get(id);
+      if (!watchers || watchers.size === 0) return;
+
+      const ctx = this.currentCtx();
+      // Snapshot for safety if callbacks mutate watcher sets
+      const list = Array.from(watchers);
+      for (const cb of list) cb(ctx, e);
+    });
+
+    this.kernelOffById.set(id, off);
+  }
+
+  private addWatcher<V>(
+    handle: OwnedStateHandle<V>,
+    cb: InternalStateWatchCallback<V>
+  ): () => void {
+    const id = getIdFromHandle(handle);
+
+    let set = this.watchersById.get(id);
+    if (!set) {
+      set = new Set();
+      this.watchersById.set(id, set);
+    }
+    set.add(cb as any);
+
+    this.ensureKernelForwarder(id, handle);
+
+    return () => {
+      const s = this.watchersById.get(id);
+      if (!s) return;
+      s.delete(cb as any);
+
+      if (s.size === 0) {
+        this.watchersById.delete(id);
+
+        // Optional: remove kernel forwarder when no watchers remain
+        const off = this.kernelOffById.get(id);
+        if (off) {
+          off();
+          this.kernelOffById.delete(id);
+        }
+      }
+    };
+  }
+
+  private emitDisconnect(handle: OwnedStateHandle<any>): void {
+    const id = getIdFromHandle(handle);
+    const watchers = this.watchersById.get(id);
+    if (!watchers || watchers.size === 0) return;
+
+    const e: StateEvent<any> = { type: "disconnect", reason: "unmount" };
+    const ctx = this.currentCtx();
+    const list = Array.from(watchers);
+    for (const cb of list) cb(ctx, e);
+  }
+
+  // -----------------------
+  // handle wrapping
+  // -----------------------
+
+  private wrapOwnedHandle<V>(
+    raw: OwnedStateHandle<V>,
+    semantic: string
+  ): OwnedStateHandle<V> {
+    const wrapped: OwnedStateHandle<V> = {
+      get: () => {
+        this.ensureAlive(opOf(semantic, "get"));
+        return raw.get();
+      },
+
+      setDefault: (v) => {
+        // setup-only policy lives in sys
+        this.ensureAlive(opOf(semantic, "setDefault"));
+        this.sys.ensureSetup(opOf(semantic, "setDefault"));
+        return raw.setDefault(v);
+      },
+
+      set: (v, reason?: StateSetReason) => {
+        // callback-only policy lives in sys
+        this.ensureAlive(opOf(semantic, "set"));
+        this.sys.ensureCallback(opOf(semantic, "set"));
+
+        const ctx = this.getCallbackCtx();
+        return this.withCtx(ctx, () => raw.set(v, reason));
+      },
+    };
+
+    (wrapped as any).__stateId = (raw as any).__stateId;
+    (wrapped as any).__stateSemantic = (raw as any).__stateSemantic ?? semantic;
+    (wrapped as any).__stateKind = (raw as any).__stateKind;
+
+    return wrapped;
+  }
+
+  // -----------------------
+  // port
+  // -----------------------
+
+  readonly port: StatePort = {
+    watch: (handle, cb) => {
+      this.ensureAlive(`state.port.watch`);
+      // optional hard enforcement (still policy-level):
+      // this.sys.ensureSetup(`state.port.watch`);
+      return this.addWatcher(handle, cb);
+    },
+
+    disconnect: (handle) => {
+      this.ensureAlive(`state.port.disconnect`);
+      this.emitDisconnect(handle);
+    },
+
+    createObservedHandle: (handle) => {
+      this.ensureAlive(`state.port.createObservedHandle`);
+      return {
+        get: () => {
+          this.ensureAlive(`state.port.createObservedHandle.get`);
+          return handle.get();
+        },
+        watch: (cb) => {
+          this.ensureAlive(`state.port.createObservedHandle.watch`);
+          return this.addWatcher(handle, cb);
+        },
+      };
+    },
+
+    createBorrowedHandle: (handle) => {
+      this.ensureAlive(`state.port.createBorrowedHandle`);
+      return {
+        get: () => {
+          this.ensureAlive(`state.port.createBorrowedHandle.get`);
+          return handle.get();
+        },
+        setDefault: (v) => {
+          this.ensureAlive(`state.port.createBorrowedHandle.setDefault`);
+          return handle.setDefault(v as any);
+        },
+        set: (v, reason) => {
+          this.ensureAlive(`state.port.createBorrowedHandle.set`);
+          const ctx = this.getCallbackCtx();
+          return this.withCtx(ctx, () => handle.set(v as any, reason as any));
+        },
+        watch: (cb) => {
+          this.ensureAlive(`state.port.createBorrowedHandle.watch`);
+          return this.addWatcher(handle, cb);
+        },
+      };
+    },
+  };
+
+  // -----------------------
+  // facade
+  // -----------------------
 
   readonly facade: StateFacade = {
     bool: (semantic, defaultValue) => {
-      const h = this.kernel.define<boolean>(
+      const raw = this.kernel.define<boolean>(
         semantic,
         { kind: "bool" },
         defaultValue
       );
-      return wrapOwnedHandle(h, this.sys, semantic);
+      return this.wrapOwnedHandle(raw, semantic);
     },
 
     enum: (semantic, defaultValue, spec) => {
-      const h = this.kernel.define<any>(
+      const raw = this.kernel.define<any>(
         semantic,
-        { kind: "enum", options: spec.options },
+        { kind: "enum", ...spec },
         defaultValue as any
       ) as OwnedStateHandle<any>;
-      return wrapOwnedHandle(h, this.sys, semantic) as any;
+      return this.wrapOwnedHandle(raw, semantic) as any;
     },
 
-    string: (semantic, defaultValue, spec) => {
-      const h = this.kernel.define<string>(
+    string: (semantic, defaultValue, spec = {}) => {
+      const raw = this.kernel.define<string>(
         semantic,
-        { kind: "string", options: spec?.options },
+        { kind: "string", ...spec },
         defaultValue
       );
-      return wrapOwnedHandle(h, this.sys, semantic);
+      return this.wrapOwnedHandle(raw, semantic);
     },
 
     numberRange: (semantic, defaultValue, spec) => {
-      const h = this.kernel.define<number>(
+      const raw = this.kernel.define<number>(
         semantic,
-        {
-          kind: "number.range",
-          min: spec.min,
-          max: spec.max,
-          clamp: spec.clamp,
-        },
+        { kind: "number.range", ...spec },
         defaultValue
       );
-      return wrapOwnedHandle(h, this.sys, semantic);
+      return this.wrapOwnedHandle(raw, semantic);
     },
 
-    numberDiscrete: (semantic, defaultValue, spec) => {
-      const h = this.kernel.define<number>(
+    numberDiscrete: (semantic, defaultValue, spec = {}) => {
+      const raw = this.kernel.define<number>(
         semantic,
-        {
-          kind: "number.discrete",
-          options: spec.options,
-          min: spec.min,
-          max: spec.max,
-          step: spec.step,
-        },
+        { kind: "number.discrete", ...spec },
         defaultValue
       );
-      return wrapOwnedHandle(h, this.sys, semantic);
+      return this.wrapOwnedHandle(raw, semantic);
     },
   };
+
+  // -----------------------
+  // lifecycle
+  // -----------------------
 
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
+
+    // Emit disconnect for all watched slots (best-effort).
+    for (const [, watchers] of this.watchersById) {
+      const e: StateEvent<any> = { type: "disconnect", reason: "unmount" };
+      const list = Array.from(watchers);
+      for (const cb of list) cb(undefined, e);
+    }
+
+    // cleanup kernel subscriptions
+    for (const [, off] of this.kernelOffById) off();
+    this.kernelOffById.clear();
+    this.watchersById.clear();
+    this.ctxStack = [];
+
     this.kernel.dispose();
   }
 }

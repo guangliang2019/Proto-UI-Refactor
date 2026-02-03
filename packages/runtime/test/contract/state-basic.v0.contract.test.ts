@@ -5,19 +5,25 @@ import { executeWithHost } from "../../src/execute";
 import type { RuntimeHost } from "../../src/host";
 
 /**
- * Runtime Contract (v0): state basic semantics (no asHook/event/expose)
+ * Runtime Contract (v0): state basic semantics
+ * (scope: owned state only; no asHook / no watch / no expose / no event-driven interaction states)
  *
- * v0 working assumptions (aligned with current kernel tests):
- * - def.state.* is setup-only (creation is setup-only)
- * - OwnedStateHandle.get/setDefault/set exist
- * - setDefault does NOT emit (kernel guarantee)
- * - set MAY be called in setup, but v0 does not require it to throw
- * - state changes do NOT trigger render automatically
- * - created runs before first commit, so created-time set is visible to initial render
- * - after unmount+dispose, state handle becomes unusable (guarded by __sys in module layer)
+ * Working assumptions (v0, implementation-aligned):
+ * - `def.state.*` is setup-only (definition/creation happens only in setup).
+ * - `OwnedStateHandle` provides: `get()`, `setDefault(v)`, `set(v, reason?)`.
+ * - Phase policy (enforced by runtime/module guards, not by kernel):
+ *   - `get()` allowed in setup + runtime.
+ *   - `setDefault()` is setup-only. Calling it in runtime MUST throw.
+ *   - `set()` is runtime-only. Calling it in setup MUST throw.
+ * - State mutation MUST NOT trigger re-render automatically. Rendering only happens on explicit `run.update()`.
+ * - Lifecycle ordering guarantee:
+ *   - `created` runs before the first render/commit, so `set()` in created is visible to the initial render.
+ * - Dispose policy:
+ *   - During `unmounted` callback, the instance is still alive; handle operations are allowed.
+ *   - After unmount + dispose, all handle operations MUST throw (guard responsibility).
  */
 describe("runtime contract: state basic (v0)", () => {
-  it("setDefault works in setup and affects created+initial render; set in setup is allowed in v0", () => {
+  it("setup: setDefault works; set throws; created sees setup-default; initial render observes it", () => {
     const logs: string[] = [];
 
     const host: RuntimeHost<any> = {
@@ -41,7 +47,7 @@ describe("runtime contract: state basic (v0)", () => {
         // setup: setDefault ok
         s.setDefault(true);
 
-        // v0: set in setup is not allowed.
+        // setup: set must throw (runtime-only)
         expect(() => s.set(false)).toThrow();
 
         def.lifecycle.onCreated(() => {
@@ -57,12 +63,11 @@ describe("runtime contract: state basic (v0)", () => {
 
     executeWithHost(P, host);
 
-    // By the time created runs and initial render happens, s.get() reflects the last setup-time mutation.
-    // (If later you decide to forbid setup-time set, update this contract + module facade guard.)
+    // created runs before first render; both should observe the setup-default value.
     expect(logs).toEqual(["created:true", "render:true"]);
   });
 
-  it("set in created is visible to initial render; set after mount does not re-render until update()", () => {
+  it("created set is visible to initial render; mounted set does not re-render until explicit update()", () => {
     const commits: Array<string> = [];
     const scheduled: Array<() => void> = [];
 
@@ -85,13 +90,15 @@ describe("runtime contract: state basic (v0)", () => {
     const P: Prototype = {
       name: "x-runtime-state-update",
       setup(def) {
-        s = def.state.numberDiscrete("count", 0, {});
+        s = def.state.numberDiscrete("count", 0);
 
         def.lifecycle.onCreated(() => {
+          // created: runtime phase; set is allowed and must be visible to first render
           s.set(1);
         });
 
         def.lifecycle.onMounted(() => {
+          // mounted: runtime phase; set is allowed but MUST NOT trigger commit automatically
           s.set(2);
           // intentionally NOT calling run.update()
         });
@@ -106,20 +113,20 @@ describe("runtime contract: state basic (v0)", () => {
     const ret = executeWithHost(P, host);
     controller = ret.controller;
 
-    // initial render should see created-time set(1)
+    // initial commit must observe created-time set(1)
     expect(commits).toEqual(["commit:1"]);
 
-    // mounted set(2) must NOT auto commit
+    // host scheduling flush: mounted has run; state set(2) must NOT auto-commit
     expect(scheduled.length).toBe(1);
     scheduled[0]();
     expect(commits).toEqual(["commit:1"]);
 
-    // explicit update commits
+    // explicit update commits new render result
     controller.update();
     expect(commits).toEqual(["commit:1", "commit:2"]);
   });
 
-  it("state handles become unusable after unmount+dispose (module guard responsibility)", () => {
+  it("dispose: usable during unmounted callback; after dispose, get/set/setDefault all throw", () => {
     const host: RuntimeHost<any> = {
       prototypeName: "x-runtime-state-dispose",
       getRawProps() {
@@ -140,9 +147,10 @@ describe("runtime contract: state basic (v0)", () => {
         s = def.state.bool("alive", true);
 
         def.lifecycle.onUnmounted(() => {
-          // during unmounted callback, still usable
+          // During unmounted callback, instance is still alive; ops are allowed.
           expect(() => s.get()).not.toThrow();
           expect(() => s.set(false)).not.toThrow();
+          // setDefault is runtime-forbidden; we intentionally don't assert it here.
         });
 
         return (r) => [r.el("div", "ok")];
@@ -152,8 +160,7 @@ describe("runtime contract: state basic (v0)", () => {
     const { invokeUnmounted } = executeWithHost(P, host);
     invokeUnmounted();
 
-    // After dispose, must throw if module facade uses __sys.ensureNotDisposed.
-    // If this currently doesn't throw, it means state-module hasn't wired __sys guards yet.
+    // After module hub dispose, all operations must throw (guard responsibility).
     expect(() => s.get()).toThrow();
     expect(() => s.set(true)).toThrow();
     expect(() => s.setDefault(true)).toThrow();
