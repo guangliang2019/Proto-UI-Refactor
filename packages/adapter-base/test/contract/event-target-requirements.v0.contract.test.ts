@@ -33,8 +33,9 @@ function createHost(
   const host: RuntimeHost<any> = {
     prototypeName,
     getRawProps: () => ({}),
-    commit(children) {
+    commit(children, signal) {
       commits.push(children);
+      signal?.done();
     },
     schedule(task) {
       scheduled.push(task);

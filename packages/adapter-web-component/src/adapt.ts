@@ -173,7 +173,7 @@ export function AdaptToWebComponent<Props extends PropsBaseType>(
           this._slotProjector = null;
         },
 
-        commit: (children) => {
+        commit: (children, signal) => {
           if (shadow) {
             commitChildren(thisRoot as any, children, { mode: "shadow" });
             this._slotProjector?.disconnect();
@@ -181,6 +181,7 @@ export function AdaptToWebComponent<Props extends PropsBaseType>(
 
             // WC profile: CP4 ~= commit done
             eventGate.enable();
+            signal?.done();
             return;
           }
 
@@ -190,6 +191,7 @@ export function AdaptToWebComponent<Props extends PropsBaseType>(
 
             // still a commit boundary; make events effective afterwards
             eventGate.enable();
+            signal?.done();
             return;
           }
 
@@ -221,6 +223,7 @@ export function AdaptToWebComponent<Props extends PropsBaseType>(
 
           // WC profile: CP4 ~= commit done
           eventGate.enable();
+          signal?.done();
         },
 
         schedule,

@@ -4,12 +4,12 @@ import { illegalPhase } from "../guard";
 import type { RuleSpec } from "@proto-ui/rule";
 import type { PropsBaseType } from "@proto-ui/types";
 import { RuleRegistry } from "../rule";
-import { ModuleHub } from "../../orchestrator/module-hub/types";
+import type { ModuleHubFacadeView } from "../../orchestrator/module-hub/types";
 import type { FeedbackFacade } from "@proto-ui/module-feedback";
 import type { PropsFacade } from "@proto-ui/module-props";
 import type { EventFacade } from "@proto-ui/module-event";
 import type { StateFacade } from "@proto-ui/module-state";
-import { __RT_EVENT_CALLBACKS, RuntimeEventCallbacks } from "../event";
+import { RuntimeEventCallbacks } from "../event";
 
 export type LifecycleKind = "created" | "mounted" | "updated" | "unmounted";
 
@@ -25,6 +25,10 @@ export interface DefRuntimeState {
   prototypeName: string;
 }
 
+export interface EventCallbacksSink<P extends PropsBaseType> {
+  setEventCallbacks(callbacks: RuntimeEventCallbacks<P>): void;
+}
+
 export function createLifecycleRegistry<
   P extends PropsBaseType
 >(): LifecycleRegistry<P> {
@@ -35,7 +39,8 @@ export const createDefHandle = <P extends PropsBaseType>(
   st: DefRuntimeState,
   life: LifecycleRegistry<P>,
   rules: RuleRegistry,
-  modules: ModuleHub
+  modules: ModuleHubFacadeView,
+  eventSink?: EventCallbacksSink<P>
 ): DefHandle<P> => {
   const facades = modules.getFacades();
   const feedback = facades["feedback"] as FeedbackFacade;
@@ -45,8 +50,7 @@ export const createDefHandle = <P extends PropsBaseType>(
 
   const eventFacade = facades["event"] as EventFacade;
   const eventCallbacks = new RuntimeEventCallbacks<P>();
-
-  (modules as any)[__RT_EVENT_CALLBACKS] = eventCallbacks;
+  eventSink?.setEventCallbacks(eventCallbacks);
 
   const ensureSetup = (op: string) => {
     const phase = st.getPhase();

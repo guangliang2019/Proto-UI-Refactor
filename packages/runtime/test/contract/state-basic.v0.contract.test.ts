@@ -30,7 +30,9 @@ describe("runtime contract: state basic (v0)", () => {
       getRawProps() {
         return {};
       },
-      commit() {},
+      commit(_children, signal) {
+        signal?.done();
+      },
       schedule(task) {
         task();
       },
@@ -75,8 +77,9 @@ describe("runtime contract: state basic (v0)", () => {
       getRawProps() {
         return {};
       },
-      commit(children) {
+      commit(children, signal) {
         commits.push(`commit:${Array.isArray(children) ? children.length : 0}`);
+        signal?.done();
       },
       schedule(task) {
         scheduled.push(task);
@@ -131,7 +134,9 @@ describe("runtime contract: state basic (v0)", () => {
       getRawProps() {
         return {};
       },
-      commit() {},
+      commit(_children, signal) {
+        signal?.done();
+      },
       schedule(task) {
         task();
       },

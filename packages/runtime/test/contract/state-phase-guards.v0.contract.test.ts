@@ -27,7 +27,9 @@ describe("runtime contract: state phase guards (v0)", () => {
       getRawProps() {
         return {};
       },
-      commit() {},
+      commit(_children, signal) {
+        signal?.done();
+      },
       schedule(task) {
         task();
       },

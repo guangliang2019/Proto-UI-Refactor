@@ -15,12 +15,13 @@ import {
   createLifecycleRegistry,
   createRunHandle,
   LifecycleRegistry,
+  type EventCallbacksSink,
 } from "./handles";
 import { RuleRegistry } from "./rule";
 import type { ModuleHubFacadeView } from "../orchestrator/module-hub/types";
 import type { PropsFacade } from "@proto-ui/module-props";
 import type { ExecPhase } from "@proto-ui/module-base";
-import type { RuntimeTimeline } from "../instance/execute/timeline";
+import type { RuntimeTimeline } from "./timeline";
 
 export type Kernel<P extends PropsBaseType> = {
   getPhase(): Phase;
@@ -47,7 +48,7 @@ export type CreateKernelOptions = {
 export function createKernel<P extends PropsBaseType>(
   proto: Prototype<P>,
   modules: ModuleHubFacadeView,
-  opt?: CreateKernelOptions
+  opt?: CreateKernelOptions & { eventSink?: EventCallbacksSink<P> }
 ): Kernel<P> {
   let phase: ExecPhase = "unknown";
   let timeline: RuntimeTimeline | null = null;
@@ -65,7 +66,7 @@ export function createKernel<P extends PropsBaseType>(
   const lifecycle = createLifecycleRegistry<P>();
   const rules = new RuleRegistry();
 
-  const def = createDefHandle<P>(st, lifecycle, rules, modules as any);
+  const def = createDefHandle<P>(st, lifecycle, rules, modules, opt?.eventSink);
 
   // ----------------
   // setup
@@ -95,7 +96,7 @@ export function createKernel<P extends PropsBaseType>(
       );
     }
     runUpdateImpl();
-  }, modules as any);
+  }, modules);
 
   // ----------------
   // read / renderer

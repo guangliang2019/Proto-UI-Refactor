@@ -23,7 +23,9 @@ describe("runtime contract: exec phase guard (v0)", () => {
       getRawProps() {
         return {};
       },
-      commit() {},
+      commit(_children, signal) {
+        signal?.done();
+      },
       schedule(task) {
         task();
       },
@@ -86,7 +88,9 @@ describe("runtime contract: exec phase guard (v0)", () => {
       getRawProps() {
         return {};
       },
-      commit() {},
+      commit(_children, signal) {
+        signal?.done();
+      },
       schedule(task) {
         task();
       },

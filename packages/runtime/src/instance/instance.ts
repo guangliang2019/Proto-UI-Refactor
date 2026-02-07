@@ -15,10 +15,11 @@ import {
 import type { ModuleHub } from "../orchestrator/module-hub";
 import { RuntimeModuleHub } from "../orchestrator/module-hub";
 import type { ExecPhase } from "@proto-ui/module-base";
+import { __RT_EVENT_CALLBACKS } from "../kernel/event";
 
 import { CallbackScope } from "./execute/callback-scope";
 import { createKernel, type Kernel } from "../kernel";
-import type { RuntimeTimeline } from "./execute/timeline";
+import type { RuntimeTimeline } from "../kernel/timeline";
 
 export type RuntimeInstance<P extends PropsBaseType> = {
   kernel: Kernel<P>;
@@ -60,6 +61,11 @@ export function createRuntimeInstance<P extends PropsBaseType>(
     allowRunUpdate: opt?.allowRunUpdate,
     onPhaseChange: (p) => {
       phaseRef = p;
+    },
+    eventSink: {
+      setEventCallbacks: (callbacks) => {
+        (moduleHub as any)[__RT_EVENT_CALLBACKS] = callbacks;
+      },
     },
   });
 

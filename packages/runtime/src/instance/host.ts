@@ -3,12 +3,16 @@ import type { TemplateChildren } from "@proto-ui/core";
 import type { PropsBaseType } from "@proto-ui/types";
 import type { ModuleHub } from "../orchestrator/module-hub";
 
+export type CommitSignal = {
+  done(): void;
+};
+
 export interface RuntimeHost<P extends PropsBaseType> {
   /** For diagnostics / errors */
   readonly prototypeName: string;
 
   /** Commit HostRoot children to the host platform */
-  commit(children: TemplateChildren): void;
+  commit(children: TemplateChildren, signal?: CommitSignal): void;
 
   /** Scheduling hook (for microtask/macrotask decisions, adapter controls timing) */
   schedule(task: () => void): void;

@@ -3,7 +3,7 @@ import { Prototype, RunHandle } from "@proto-ui/core";
 import { PropsBaseType } from "@proto-ui/types";
 import { RuntimeHost } from "../host";
 import { ExecuteWithHostResult, RuntimeController } from "./types";
-import { createTimeline } from "./timeline";
+import { createTimeline } from "../../kernel/timeline";
 import type { PropsFacade, PropsPort } from "@proto-ui/module-props";
 import { EventPort } from "@proto-ui/module-event";
 import { __RT_EVENT_CALLBACKS } from "../../kernel/event";
@@ -41,36 +41,46 @@ export function executeWithHost<P extends PropsBaseType>(
 
     const children = inst.renderOnce();
 
-    host.commit(children);
-    timeline.mark("commit:done");
+    timeline.mark("commit:begin");
 
-    timeline.mark("instance:reachable");
+    let commitDone = false;
+    const afterCommit = () => {
+      if (commitDone) return;
+      commitDone = true;
 
-    // bind event dispatch
-    const eventPort = moduleHub.getPort<EventPort>("event");
-    const eventRegistry = (moduleHub as any)[__RT_EVENT_CALLBACKS] as
-      | { dispatch: (run: RunHandle<P>, id: string, ev: any) => void }
-      | undefined;
+      timeline.mark("commit:done");
 
-    if (eventPort?.bind && eventRegistry) {
-      const dispatch = (id: string, ev: any) => {
+      timeline.mark("instance:reachable");
+
+      // bind event dispatch
+      const eventPort = moduleHub.getPort<EventPort>("event");
+      const eventRegistry = (moduleHub as any)[__RT_EVENT_CALLBACKS] as
+        | { dispatch: (run: RunHandle<P>, id: string, ev: any) => void }
+        | undefined;
+
+      if (eventPort?.bind && eventRegistry) {
+        const dispatch = (id: string, ev: any) => {
+          callbackScope.run(run, () => {
+            eventRegistry.dispatch(run, id, ev);
+          });
+        };
+        eventPort.bind(dispatch);
+      }
+
+      moduleHub.afterRenderCommit();
+      timeline.mark("afterRenderCommit");
+
+      if (kind === "update") {
+        moduleHub.setProtoPhase("updated");
+        // updated callbacks
         callbackScope.run(run, () => {
-          eventRegistry.dispatch(run, id, ev);
+          for (const cb of lifecycle.updated) cb(run);
         });
-      };
-      eventPort.bind(dispatch);
-    }
+      }
+    };
 
-    moduleHub.afterRenderCommit();
-    timeline.mark("afterRenderCommit");
-
-    if (kind === "update") {
-      moduleHub.setProtoPhase("updated");
-      // updated callbacks
-      callbackScope.run(run, () => {
-        for (const cb of lifecycle.updated) cb(run);
-      });
-    }
+    host.commit(children, { done: afterCommit });
+    afterCommit();
 
     return children;
   };

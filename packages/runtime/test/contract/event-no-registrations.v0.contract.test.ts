@@ -12,9 +12,10 @@ function createMockHost(prototypeName: string) {
     getRawProps() {
       return {};
     },
-    commit(children) {
+    commit(children, signal) {
       calls.push("commit");
       commits.push(children);
+      signal?.done();
     },
     schedule(task) {
       calls.push("schedule-mounted");

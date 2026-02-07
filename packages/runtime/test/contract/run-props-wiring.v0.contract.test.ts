@@ -28,8 +28,9 @@ describe("runtime contract: run.props wiring (v0)", () => {
       getRawProps() {
         return raw;
       },
-      commit() {
+      commit(_children, signal) {
         // not relevant for this contract test
+        signal?.done();
       },
       schedule(task) {
         // mounted scheduling irrelevant here; run it immediately to avoid leakage
@@ -114,7 +115,9 @@ describe("runtime contract: run.props wiring (v0)", () => {
       getRawProps() {
         return raw;
       },
-      commit() {},
+      commit(_children, signal) {
+        signal?.done();
+      },
       schedule(task) {
         task();
       },

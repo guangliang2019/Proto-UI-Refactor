@@ -1,9 +1,10 @@
-// packages/runtime/src/instance/execute/timeline.ts
+// packages/runtime/src/kernel/timeline.ts
 export type RuntimeCheckpoint =
   | "setup:end"
   | "host:ready"
   // cycle-level (repeatable per commit)
   | "tree:logical-ready"
+  | "commit:begin"
   | "commit:done"
   | "instance:reachable"
   | "afterRenderCommit"
@@ -33,6 +34,7 @@ export function createTimeline(): RuntimeTimeline {
   // cycle-level order (repeatable)
   const cycleOrder: RuntimeCheckpoint[] = [
     "tree:logical-ready",
+    "commit:begin",
     "commit:done",
     "instance:reachable",
     "afterRenderCommit",
