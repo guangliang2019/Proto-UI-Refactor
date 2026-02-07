@@ -1,7 +1,7 @@
 // packages/runtime/src/instance/host.ts
 import type { TemplateChildren } from "@proto-ui/core";
 import type { PropsBaseType } from "@proto-ui/types";
-import type { ModuleHub } from "../orchestrator/module-hub";
+import type { ModuleWiring } from "../orchestrator/module-orchestrator";
 
 export type CommitSignal = {
   done(): void;
@@ -29,7 +29,7 @@ export interface RuntimeHost<P extends PropsBaseType> {
    * - effects ports
    * - platform refs
    */
-  onRuntimeReady?(caps: ModuleHub): void;
+  onRuntimeReady?(wiring: ModuleWiring): void;
 
   /**
    * CP8 hook: called when unmount begins, BEFORE `unmounted` callbacks run.

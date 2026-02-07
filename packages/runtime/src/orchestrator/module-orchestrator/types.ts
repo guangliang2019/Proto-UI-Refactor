@@ -1,5 +1,6 @@
-// packages/runtime/src/orchestrator/module-hub/types.ts
+// packages/runtime/src/orchestrator/module-orchestrator/types.ts
 import type {
+  CapEntries,
   ModuleFacade,
   ModuleInstance,
   ModuleScope,
@@ -19,12 +20,12 @@ export type AnyModule = ModuleInstance<ModuleFacade> & {
  * Facade-only view for places that must NOT touch ports.
  * Kernel should only depend on this.
  */
-export interface ModuleHubFacadeView {
+export interface ModuleOrchestratorFacadeView {
   /** runtime -> handles (facades are safe, stable, public) */
   getFacades(): Record<string, ModuleFacade>;
 }
 
-export interface ModuleHub extends ModuleHubFacadeView {
+export interface ModuleOrchestrator extends ModuleOrchestratorFacadeView {
   /** runtime -> modules */
   setProtoPhase(phase: ProtoPhase): void;
   afterRenderCommit(): void;
@@ -35,6 +36,23 @@ export interface ModuleHub extends ModuleHubFacadeView {
   /** runtime -> adapter */
   getCapsController(moduleName: string): CapsController | undefined;
 
+  /** adapter wiring API (flat) */
+  getWiring(): ModuleWiring;
+
   /** lifecycle */
   dispose(): void;
+}
+
+export interface ModuleWiring {
+  /**
+   * Attach host caps for a module.
+   * Returns true if attached, false if module not found.
+   */
+  attach(moduleName: string, entries: CapEntries): boolean;
+
+  /**
+   * Reset host caps for a module.
+   * If moduleName is omitted, reset all attached host caps.
+   */
+  reset(moduleName?: string): void;
 }

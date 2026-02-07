@@ -12,8 +12,8 @@ import {
   type TestSysPort,
 } from "@proto-ui/module-test-sys";
 
-import type { ModuleHub } from "../orchestrator/module-hub";
-import { RuntimeModuleHub } from "../orchestrator/module-hub";
+import type { ModuleOrchestrator } from "../orchestrator/module-orchestrator";
+import { RuntimeModuleOrchestrator } from "../orchestrator/module-orchestrator";
 import type { ExecPhase } from "@proto-ui/module-base";
 import { __RT_EVENT_CALLBACKS } from "../kernel/event";
 
@@ -23,7 +23,7 @@ import type { RuntimeTimeline } from "../kernel/timeline";
 
 export type RuntimeInstance<P extends PropsBaseType> = {
   kernel: Kernel<P>;
-  moduleHub: ModuleHub;
+  moduleHub: ModuleOrchestrator;
   callbackScope: CallbackScope<P>;
 
   renderOnce(): TemplateChildren;
@@ -46,7 +46,7 @@ export function createRuntimeInstance<P extends PropsBaseType>(
   let phaseRef: ExecPhase = "unknown";
   const getPhase = () => phaseRef;
 
-  const moduleHub = new RuntimeModuleHub(
+  const moduleHub = new RuntimeModuleOrchestrator(
     { prototypeName: proto.name, getPhase },
     [
       { name: "feedback", create: createFeedbackModule },

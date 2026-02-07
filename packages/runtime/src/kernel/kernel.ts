@@ -18,7 +18,7 @@ import {
   type EventCallbacksSink,
 } from "./handles";
 import { RuleRegistry } from "./rule";
-import type { ModuleHubFacadeView } from "../orchestrator/module-hub/types";
+import type { ModuleOrchestratorFacadeView } from "../orchestrator/module-orchestrator/types";
 import type { PropsFacade } from "@proto-ui/module-props";
 import type { ExecPhase } from "@proto-ui/module-base";
 import type { RuntimeTimeline } from "./timeline";
@@ -47,7 +47,7 @@ export type CreateKernelOptions = {
 
 export function createKernel<P extends PropsBaseType>(
   proto: Prototype<P>,
-  modules: ModuleHubFacadeView,
+  modules: ModuleOrchestratorFacadeView,
   opt?: CreateKernelOptions & { eventSink?: EventCallbacksSink<P> }
 ): Kernel<P> {
   let phase: ExecPhase = "unknown";
@@ -86,9 +86,7 @@ export function createKernel<P extends PropsBaseType>(
     };
   }
 
-  // NOTE: createRunHandle needs full ModuleHub today (it reads facades only),
-  // so we cast here. If you later split RunHandle creation into instance,
-  // this cast can disappear.
+  // NOTE: createRunHandle only depends on the facade view.
   const run = createRunHandle<P>(() => {
     if (!runUpdateImpl) {
       throw new Error(

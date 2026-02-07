@@ -2,7 +2,7 @@
 import { TemplateChildren } from "@proto-ui/core";
 import { PropsBaseType } from "@proto-ui/types";
 import { LifecycleRegistry } from "../../kernel/handles/def";
-import { ModuleHub } from "../../orchestrator/module-hub";
+import { ModuleOrchestrator } from "../../orchestrator/module-orchestrator";
 
 export interface ExecuteOptions {
   props?: any;
@@ -32,5 +32,5 @@ export interface ExecuteWithHostResult {
   invokeUnmounted(): void;
 
   /** expose module host for adapter caps injection (temporary but effective) */
-  caps: ModuleHub;
+  caps: ModuleOrchestrator;
 }

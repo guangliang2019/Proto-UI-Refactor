@@ -40,8 +40,8 @@ function createHost(
     schedule(task) {
       scheduled.push(task);
     },
-    onRuntimeReady(capsHub) {
-      wiring.onRuntimeReady(capsHub);
+    onRuntimeReady(wiringApi) {
+      wiring.onRuntimeReady(wiringApi);
     },
   };
 

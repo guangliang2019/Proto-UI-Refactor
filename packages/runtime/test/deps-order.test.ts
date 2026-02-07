@@ -1,15 +1,15 @@
 // packages/runtime/test/orchestrator/deps-order.test.ts
 import { describe, it, expect } from "vitest";
 import {
-  RuntimeModuleHub,
+  RuntimeModuleOrchestrator,
   type ModuleDecl,
-} from "../src/orchestrator/module-hub";
+} from "../src/orchestrator/module-orchestrator";
 import type { ExecPhase } from "@proto-ui/module-base";
 import type { ModuleFacade } from "@proto-ui/core";
 
 /**
  * These tests are intentionally "unit tests" (not contract tests).
- * They only pin the behavior of RuntimeModuleHub as a module assembler:
+ * They only pin the behavior of RuntimeModuleOrchestrator as a module assembler:
  * - deps ordering (topo sort)
  * - missing deps should throw
  * - cycle should throw
@@ -38,12 +38,12 @@ function mkModule(
   };
 }
 
-describe("runtime: RuntimeModuleHub deps ordering (unit)", () => {
+describe("runtime: RuntimeModuleOrchestrator deps ordering (unit)", () => {
   it("topo sort: deps must be created before dependents", () => {
     const calls: string[] = [];
     let phase: ExecPhase = "setup";
 
-    const hub = new RuntimeModuleHub(
+    const hub = new RuntimeModuleOrchestrator(
       { prototypeName: "t-hub-deps-order", getPhase: () => phase },
       [
         // Intentionally shuffled order:
@@ -73,7 +73,7 @@ describe("runtime: RuntimeModuleHub deps ordering (unit)", () => {
 
     // Case 1: optional dep exists -> order enforced
     calls.length = 0;
-    new RuntimeModuleHub(
+    new RuntimeModuleOrchestrator(
       { prototypeName: "t-hub-optional-present", getPhase: () => phase },
       [mkModule("A", calls, { optionalDeps: ["B"] }), mkModule("B", calls)]
     );
@@ -82,7 +82,7 @@ describe("runtime: RuntimeModuleHub deps ordering (unit)", () => {
     // Case 2: optional dep missing -> no throw
     calls.length = 0;
     expect(() => {
-      new RuntimeModuleHub(
+      new RuntimeModuleOrchestrator(
         { prototypeName: "t-hub-optional-missing", getPhase: () => phase },
         [mkModule("A", calls, { optionalDeps: ["B"] })]
       );
@@ -94,7 +94,7 @@ describe("runtime: RuntimeModuleHub deps ordering (unit)", () => {
     let phase: ExecPhase = "setup";
 
     expect(() => {
-      new RuntimeModuleHub(
+      new RuntimeModuleOrchestrator(
         { prototypeName: "t-hub-missing-dep", getPhase: () => phase },
         [mkModule("A", calls, { deps: ["B"] })]
       );
@@ -106,7 +106,7 @@ describe("runtime: RuntimeModuleHub deps ordering (unit)", () => {
     let phase: ExecPhase = "setup";
 
     expect(() => {
-      new RuntimeModuleHub(
+      new RuntimeModuleOrchestrator(
         { prototypeName: "t-hub-cycle", getPhase: () => phase },
         [
           mkModule("A", calls, { deps: ["B"] }),

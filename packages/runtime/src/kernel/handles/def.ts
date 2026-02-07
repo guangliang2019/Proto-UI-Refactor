@@ -4,7 +4,7 @@ import { illegalPhase } from "../guard";
 import type { RuleSpec } from "@proto-ui/rule";
 import type { PropsBaseType } from "@proto-ui/types";
 import { RuleRegistry } from "../rule";
-import type { ModuleHubFacadeView } from "../../orchestrator/module-hub/types";
+import type { ModuleOrchestratorFacadeView } from "../../orchestrator/module-orchestrator/types";
 import type { FeedbackFacade } from "@proto-ui/module-feedback";
 import type { PropsFacade } from "@proto-ui/module-props";
 import type { EventFacade } from "@proto-ui/module-event";
@@ -39,7 +39,7 @@ export const createDefHandle = <P extends PropsBaseType>(
   st: DefRuntimeState,
   life: LifecycleRegistry<P>,
   rules: RuleRegistry,
-  modules: ModuleHubFacadeView,
+  modules: ModuleOrchestratorFacadeView,
   eventSink?: EventCallbacksSink<P>
 ): DefHandle<P> => {
   const facades = modules.getFacades();

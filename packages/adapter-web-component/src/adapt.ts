@@ -149,17 +149,8 @@ export function AdaptToWebComponent<Props extends PropsBaseType>(
         },
 
         // CP1: runtime ready hook (called before created + before first commit)
-        onRuntimeReady: (capsHub) => {
-          wiring.onRuntimeReady(capsHub);
-
-          // Debug: expose test-sys port for contract tests (best-effort).
-          // If module not present, leave undefined.
-          try {
-            const sysPort = (capsHub as any).getPort?.("test-sys");
-            (thisEl as any)[__WC_DEBUG_SYS] = sysPort;
-          } catch {
-            // ignore in v0
-          }
+        onRuntimeReady: (wiringApi) => {
+          wiring.onRuntimeReady(wiringApi);
         },
 
         // CP8: unmount begins hook (before unmounted callbacks)
@@ -231,6 +222,15 @@ export function AdaptToWebComponent<Props extends PropsBaseType>(
 
       const res = executeWithHost(proto, host);
       const { controller, invokeUnmounted, caps: capsHub } = res;
+
+      // Debug: expose test-sys port for contract tests (best-effort).
+      // If module not present, leave undefined.
+      try {
+        const sysPort = (capsHub as any).getPort?.("test-sys");
+        (thisEl as any)[__WC_DEBUG_SYS] = sysPort;
+      } catch {
+        // ignore in v0
+      }
 
       // expose debug trace getter (non-enumerable)
       Object.defineProperty(this as any, "__debugTestSysTrace", {

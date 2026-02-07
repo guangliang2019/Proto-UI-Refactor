@@ -2,7 +2,7 @@
 import type { PropsBaseType } from "@proto-ui/types";
 import type { RunHandle } from "@proto-ui/core";
 import type { ExecPhase } from "@proto-ui/module-base";
-import type { ModuleHub } from "../../orchestrator/module-hub";
+import type { ModuleOrchestrator } from "../../orchestrator/module-orchestrator";
 import type { PropsPort, PropsWatchTask } from "@proto-ui/module-props";
 
 /**
@@ -18,7 +18,7 @@ import type { PropsPort, PropsWatchTask } from "@proto-ui/module-props";
 export class CallbackScope<P extends PropsBaseType> {
   constructor(
     private readonly setPhase: (p: ExecPhase) => void,
-    private readonly moduleHub: ModuleHub
+    private readonly moduleHub: ModuleOrchestrator
   ) {}
 
   private syncPropsFromHost() {

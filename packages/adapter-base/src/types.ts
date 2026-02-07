@@ -1,6 +1,6 @@
 // packages/adapter-base/src/types.ts
 import { CapEntries } from "@proto-ui/core";
-import type { ModuleHub } from "@proto-ui/runtime";
+import type { ModuleWiring } from "@proto-ui/runtime";
 
 export type ModuleName = string;
 
@@ -11,7 +11,7 @@ export type WiringSpec = Record<
 >;
 
 export type HostWiring = {
-  onRuntimeReady(caps: ModuleHub): void;
+  onRuntimeReady(wiring: ModuleWiring): void;
   onUnmountBegin?(): void;
 
   /**

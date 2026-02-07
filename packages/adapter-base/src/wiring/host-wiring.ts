@@ -1,7 +1,6 @@
 // packages/adapter-base/src/wiring/host-wiring.ts
 import type { HostWiring, WiringSpec } from "../types";
-import type { ModuleHub } from "@proto-ui/runtime";
-import type { CapEntries } from "@proto-ui/core";
+import type { ModuleWiring } from "@proto-ui/runtime";
 
 export function createHostWiring(args: {
   prototypeName: string;
@@ -9,32 +8,30 @@ export function createHostWiring(args: {
 }): HostWiring {
   const { prototypeName, modules } = args;
 
-  const controllers = new Map<
-    string,
-    { attach(e: CapEntries): void; reset(): void }
-  >();
+  const wired = new Set<string>();
+  let wiringApi: ModuleWiring | null = null;
 
   return {
-    onRuntimeReady(hub: ModuleHub) {
+    onRuntimeReady(wiring: ModuleWiring) {
+      wiringApi = wiring;
       for (const [name, provide] of Object.entries(modules)) {
-        const c = hub.getCapsController(name);
-        if (!c) continue;
-        controllers.set(name, c);
-
         const entries = provide({ prototypeName });
-        c.attach(entries);
+        const ok = wiring.attach(name, entries);
+        if (ok) wired.add(name);
       }
     },
 
     afterUnmount() {
-      for (const c of controllers.values()) {
+      if (!wiringApi) return;
+      for (const name of wired) {
         try {
-          c.reset();
+          wiringApi.reset(name);
         } catch {
           // ignore v0
         }
       }
-      controllers.clear();
+      wired.clear();
+      wiringApi = null;
     },
   };
 }

@@ -33,7 +33,7 @@ export function executeWithHost<P extends PropsBaseType>(
   propsPort.applyRaw({ ...(host.getRawProps?.() ?? {}) });
   timeline.mark("host:ready");
 
-  host.onRuntimeReady?.(moduleHub);
+  host.onRuntimeReady?.(moduleHub.getWiring());
 
   const doRenderCommit = (kind: "initial" | "update") => {
     // pull latest raw before rendering

@@ -1,4 +1,4 @@
-// packages/runtime/src/orchestrator/module-hub/runtime-module-hub.ts
+// packages/runtime/src/orchestrator/module-orchestrator/runtime-module-orchestrator.ts
 import type { ModuleFacade, ProtoPhase } from "@proto-ui/core";
 import type { CapEntries, CapsVaultView } from "@proto-ui/core";
 import {
@@ -8,7 +8,7 @@ import {
   CapsVault,
 } from "@proto-ui/module-base";
 
-import type { AnyModule, ModuleHub } from "./types";
+import type { AnyModule, ModuleOrchestrator, ModuleWiring } from "./types";
 import type { CapsController } from "../caps";
 
 type ModuleFactory = (ctx: {
@@ -42,7 +42,7 @@ type ModuleRecord = {
   module: AnyModule;
 };
 
-export class RuntimeModuleHub implements ModuleHub {
+export class RuntimeModuleOrchestrator implements ModuleOrchestrator {
   private readonly prototypeName: string;
   private readonly getExecPhase: () => ExecPhase;
 
@@ -54,6 +54,7 @@ export class RuntimeModuleHub implements ModuleHub {
 
   private facades: Record<string, ModuleFacade> = {};
   private ports: Record<string, any> = {};
+  private wiring: ModuleWiring;
 
   // runtime-owned callback ctx (opaque)
   private callbackCtx: unknown = undefined;
@@ -155,6 +156,35 @@ export class RuntimeModuleHub implements ModuleHub {
         this.ports[m.name] = (module as any).port;
       }
     }
+
+    // -------------------------
+    // wiring API (adapter-facing)
+    // -------------------------
+    this.wiring = {
+      attach: (moduleName: string, entries: CapEntries) => {
+        const rec = this.recordByName.get(moduleName);
+        if (!rec) return false;
+        rec.controller.attach(entries);
+        return true;
+      },
+
+      reset: (moduleName?: string) => {
+        if (!moduleName) {
+          for (const r of this.records) {
+            try {
+              r.controller.reset();
+            } catch {
+              // ignore v0
+            }
+          }
+          return;
+        }
+
+        const rec = this.recordByName.get(moduleName);
+        if (!rec) return;
+        rec.controller.reset();
+      },
+    };
   }
 
   private sortAndValidate(modules: ModuleDecl[]): ModuleDecl[] {
@@ -311,6 +341,10 @@ export class RuntimeModuleHub implements ModuleHub {
 
   getCapsController(moduleName: string): CapsController | undefined {
     return this.recordByName.get(moduleName)?.controller;
+  }
+
+  getWiring(): ModuleWiring {
+    return this.wiring;
   }
 
   // -------------------------
