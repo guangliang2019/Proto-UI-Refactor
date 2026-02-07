@@ -1,4 +1,4 @@
-// packages/runtime/src/caps/types.ts
+// packages/runtime/src/orchestrator/caps/types.ts
 import type { CapEntries } from "@proto-ui/core";
 
 export interface CapsController {

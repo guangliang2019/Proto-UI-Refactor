@@ -1,8 +1,7 @@
 // packages/runtime/test/contract/lifecycle-with-host.v0.contract.test.ts
 import { describe, it, expect } from "vitest";
 import type { Prototype, TemplateChildren } from "@proto-ui/core";
-import { executeWithHost } from "../../src/execute";
-import type { RuntimeHost } from "../../src/host";
+import { executeWithHost, RuntimeHost } from "../../src";
 
 // If runtime/src/index.ts does NOT re-export core types, then use:
 // import type { Prototype, TemplateChildren } from "@proto-ui/core";

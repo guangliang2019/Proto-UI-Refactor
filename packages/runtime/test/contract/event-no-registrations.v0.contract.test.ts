@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { Prototype, TemplateChildren } from "@proto-ui/core";
-import { executeWithHost } from "../../src/execute";
-import type { RuntimeHost } from "../../src/host";
+import { executeWithHost, RuntimeHost } from "../../src";
 
 function createMockHost(prototypeName: string) {
   const calls: string[] = [];

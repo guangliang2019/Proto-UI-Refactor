@@ -1,10 +1,10 @@
-// packages/runtime/src/handles/def.ts
+// packages/runtime/src/kernel/handles/def.ts
 import type { DefHandle, RunHandle, StyleHandle } from "@proto-ui/core";
 import { illegalPhase } from "../guard";
 import type { RuleSpec } from "@proto-ui/rule";
 import type { PropsBaseType } from "@proto-ui/types";
 import { RuleRegistry } from "../rule";
-import { ModuleHub } from "../module-hub/types";
+import { ModuleHub } from "../../orchestrator/module-hub/types";
 import type { FeedbackFacade } from "@proto-ui/module-feedback";
 import type { PropsFacade } from "@proto-ui/module-props";
 import type { EventFacade } from "@proto-ui/module-event";

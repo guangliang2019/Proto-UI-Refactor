@@ -1,6 +1,6 @@
-// packages/runtime/src/handles/run.ts
+// packages/runtime/src/kernel/handles/run.ts
 import { PropsBaseType } from "@proto-ui/types";
-import { ModuleHub } from "../module-hub";
+import { ModuleHub } from "../../orchestrator/module-hub";
 import { RunHandle } from "@proto-ui/core";
 import { PropsFacade } from "@proto-ui/module-props";
 

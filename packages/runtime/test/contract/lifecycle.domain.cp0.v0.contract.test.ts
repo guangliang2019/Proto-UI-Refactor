@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { Prototype } from "@proto-ui/core";
-import type { RuntimeHost } from "../../src/host";
-import { executeWithHost } from "../../src/execute";
+import { executeWithHost, RuntimeHost } from "../../src";
 import { __RUN_TEST_SYS } from "@proto-ui/module-test-sys";
 import type { TestSysPort } from "@proto-ui/module-test-sys";
 

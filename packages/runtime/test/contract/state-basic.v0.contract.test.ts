@@ -1,8 +1,7 @@
 // packages/runtime/test/contract/state-basic.v0.contract.test.ts
 import { describe, it, expect } from "vitest";
 import type { Prototype, OwnedStateHandle } from "@proto-ui/core";
-import { executeWithHost } from "../../src/execute";
-import type { RuntimeHost } from "../../src/host";
+import { executeWithHost, RuntimeHost } from "../../src";
 
 /**
  * Runtime Contract (v0): state basic semantics

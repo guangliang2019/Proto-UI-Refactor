@@ -1,8 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { Prototype } from "@proto-ui/core";
 import { tw } from "@proto-ui/core";
-import { executeWithHost } from "../../src/execute";
-import type { RuntimeHost } from "../../src/host";
+import { executeWithHost, RuntimeHost } from "../../src";
 
 describe("runtime: feedback.style.setup-only v0", () => {
   it("throws if calling def.feedback.style.use outside setup", () => {

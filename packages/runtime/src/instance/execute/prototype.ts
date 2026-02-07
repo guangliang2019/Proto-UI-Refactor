@@ -1,7 +1,7 @@
 import { Prototype } from "@proto-ui/core";
 import { PropsBaseType } from "@proto-ui/types";
 import { ExecuteOptions, ExecuteResult } from "./types";
-import { createEngine } from "./engine";
+import { createRuntimeInstance } from "../instance";
 
 /**
  * Pure in-memory executor (used by internal specimens).
@@ -11,15 +11,15 @@ export function executePrototype<P extends PropsBaseType>(
   proto: Prototype<P>,
   opt: ExecuteOptions = {}
 ): ExecuteResult<P> {
-  const engine = createEngine(proto, {
+  const inst = createRuntimeInstance(proto, {
     allowRunUpdate: false,
   });
 
-  const children = engine.renderOnce();
+  const children = inst.renderOnce();
 
   return {
     children,
-    lifecycle: engine.lifecycle,
-    invoke: (kind) => engine.invoke(kind),
+    lifecycle: inst.kernel.lifecycle,
+    invoke: (kind) => inst.runLifecycle(kind),
   };
 }

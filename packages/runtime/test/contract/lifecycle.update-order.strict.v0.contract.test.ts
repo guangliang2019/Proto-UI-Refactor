@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { Prototype, TemplateChildren } from "@proto-ui/core";
-import type { RuntimeHost } from "../../src/host";
-import { executeWithHost } from "../../src/execute";
+import { executeWithHost, RuntimeHost } from "../../src";
 
 describe("contract: runtime / update strict order (v0)", () => {
   it("render happens before commit, and updated callbacks happen after commit", () => {

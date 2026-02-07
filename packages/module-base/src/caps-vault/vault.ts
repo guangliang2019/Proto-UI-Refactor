@@ -1,3 +1,4 @@
+// packages/module-base/src/caps-vault/vault.ts
 import type { CapEntries, CapToken, CapsVaultView } from "@proto-ui/core";
 import { capUnavailable } from "@proto-ui/core";
 import { Unsubscribe } from "./types";

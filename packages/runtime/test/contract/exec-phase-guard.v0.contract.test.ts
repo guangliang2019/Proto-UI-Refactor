@@ -1,8 +1,7 @@
 // packages/runtime/test/contract/exec-phase-guard.v0.contract.test.ts
 import { describe, it, expect } from "vitest";
 import type { Prototype, OwnedStateHandle } from "@proto-ui/core";
-import { executeWithHost } from "../../src/execute";
-import type { RuntimeHost } from "../../src/host";
+import { executeWithHost, RuntimeHost } from "../../src";
 
 /**
  * Runtime Contract (v0): exec phase guard
@@ -99,7 +98,7 @@ describe("runtime contract: exec phase guard (v0)", () => {
     const P: Prototype = {
       name: "x-runtime-exec-phase-dispose",
       setup(def) {
-        s = def.state.numberDiscrete("count", 0, {kind: "number.discrete"});
+        s = def.state.numberDiscrete("count", 0);
 
         def.lifecycle.onUnmounted(() => {
           // during unmounted callback: NOT disposed yet, must be usable

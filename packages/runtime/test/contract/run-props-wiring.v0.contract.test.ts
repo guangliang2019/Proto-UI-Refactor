@@ -1,8 +1,7 @@
 // packages/runtime/test/contracts/run-props-wiring.v0.contract.test.ts
 import { describe, it, expect } from "vitest";
 import type { Prototype } from "@proto-ui/core";
-import { executeWithHost } from "../../src/execute";
-import type { RuntimeHost } from "../../src/host";
+import { executeWithHost, RuntimeHost } from "../../src";
 
 /**
  * Runtime Contract (v0): RunHandle.props wiring

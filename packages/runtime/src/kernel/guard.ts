@@ -1,4 +1,4 @@
-// packages/runtime/src/guard.ts
+// packages/runtime/src/kernel/guard.ts
 
 export function illegalPhase(
   op: string,

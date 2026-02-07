@@ -1,4 +1,4 @@
-// packages/runtime/src/rule.ts
+// packages/runtime/src/kernel/rule.ts
 import type { RuleIR, RuleSpec } from "@proto-ui/rule";
 import { compileRule, evaluateRulesToPlan } from "@proto-ui/rule";
 

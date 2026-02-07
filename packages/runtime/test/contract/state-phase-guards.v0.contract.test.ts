@@ -1,8 +1,8 @@
 // packages/runtime/test/contract/state-phase-guards.v0.contract.test.ts
 import { describe, it, expect } from "vitest";
 import type { Prototype, OwnedStateHandle } from "@proto-ui/core";
-import { executeWithHost } from "../../src/execute";
-import type { RuntimeHost } from "../../src/host";
+import { executeWithHost, RuntimeHost } from "../../src";
+
 
 /**
  * Runtime Contract (v0): phase guards for OwnedStateHandle APIs

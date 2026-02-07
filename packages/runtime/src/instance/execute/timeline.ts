@@ -1,4 +1,4 @@
-// packages/runtime/src/execute/timeline.ts
+// packages/runtime/src/instance/execute/timeline.ts
 export type RuntimeCheckpoint =
   | "setup:end"
   | "host:ready"

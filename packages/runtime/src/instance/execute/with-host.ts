@@ -1,13 +1,13 @@
-// packages/runtime/src/execute/with-host.ts
+// packages/runtime/src/instance/execute/with-host.ts
 import { Prototype, RunHandle } from "@proto-ui/core";
 import { PropsBaseType } from "@proto-ui/types";
 import { RuntimeHost } from "../host";
 import { ExecuteWithHostResult, RuntimeController } from "./types";
-import { createEngine } from "./engine";
-import type { PropsFacade, PropsPort } from "@proto-ui/module-props";
 import { createTimeline } from "./timeline";
+import type { PropsFacade, PropsPort } from "@proto-ui/module-props";
 import { EventPort } from "@proto-ui/module-event";
-import { __RT_EVENT_CALLBACKS } from "../event";
+import { __RT_EVENT_CALLBACKS } from "../../kernel/event";
+import { createRuntimeInstance } from "../instance";
 
 export function executeWithHost<P extends PropsBaseType>(
   proto: Prototype<P>,
@@ -15,12 +15,11 @@ export function executeWithHost<P extends PropsBaseType>(
 ): ExecuteWithHostResult {
   const timeline = createTimeline();
 
-  const engine = createEngine(proto, {
-    allowRunUpdate: true,
-  });
-  engine.setTimeline(timeline);
+  const inst = createRuntimeInstance(proto, { allowRunUpdate: true });
+  inst.setTimeline(timeline);
 
-  const { lifecycle, rules, moduleHub, run } = engine;
+  const { kernel, moduleHub, callbackScope } = inst;
+  const { lifecycle, rules, run } = kernel;
 
   const facades = moduleHub.getFacades();
   const propsFacade = facades["props"] as PropsFacade<P>;
@@ -30,16 +29,8 @@ export function executeWithHost<P extends PropsBaseType>(
     throw new Error("props port not found");
   }
 
-  const dispatchPropsTasks = (ctx: RunHandle<P>) => {
-    const tasks = propsPort.consumeTasks();
-    for (const t of tasks as any[]) {
-      t.cb(ctx, t.next, t.prev, t.info);
-    }
-  };
-
   // initial props hydration (before any callbacks + before initial render)
   propsPort.applyRaw({ ...(host.getRawProps?.() ?? {}) });
-
   timeline.mark("host:ready");
 
   host.onRuntimeReady?.(moduleHub);
@@ -48,12 +39,14 @@ export function executeWithHost<P extends PropsBaseType>(
     // pull latest raw before rendering
     propsPort.syncFromHost();
 
-    const children = engine.renderOnce();
+    const children = inst.renderOnce();
 
     host.commit(children);
     timeline.mark("commit:done");
 
     timeline.mark("instance:reachable");
+
+    // bind event dispatch
     const eventPort = moduleHub.getPort<EventPort>("event");
     const eventRegistry = (moduleHub as any)[__RT_EVENT_CALLBACKS] as
       | { dispatch: (run: RunHandle<P>, id: string, ev: any) => void }
@@ -61,14 +54,10 @@ export function executeWithHost<P extends PropsBaseType>(
 
     if (eventPort?.bind && eventRegistry) {
       const dispatch = (id: string, ev: any) => {
-        // enforce callback-phase semantics centrally
-        engine.setPhase("callback");
-        propsPort.syncFromHost();
-        dispatchPropsTasks(run);
-        eventRegistry.dispatch(run, id, ev);
-        engine.setPhase("unknown");
+        callbackScope.run(run, () => {
+          eventRegistry.dispatch(run, id, ev);
+        });
       };
-
       eventPort.bind(dispatch);
     }
 
@@ -77,12 +66,10 @@ export function executeWithHost<P extends PropsBaseType>(
 
     if (kind === "update") {
       moduleHub.setProtoPhase("updated");
-
-      engine.setPhase("callback");
-      propsPort.syncFromHost();
-      dispatchPropsTasks(run);
-      for (const cb of lifecycle.updated) cb(run);
-      engine.setPhase("unknown");
+      // updated callbacks
+      callbackScope.run(run, () => {
+        for (const cb of lifecycle.updated) cb(run);
+      });
     }
 
     return children;
@@ -94,18 +81,13 @@ export function executeWithHost<P extends PropsBaseType>(
     applyRawProps(nextRaw) {
       // must trigger watches but must NOT render/commit
       propsPort.applyRaw({ ...(nextRaw ?? {}) });
-      engine.setPhase("callback");
-      dispatchPropsTasks(run);
-      engine.setPhase("unknown");
+      callbackScope.runNoSync(run, () => {});
     },
     update() {
       doRenderCommit("update");
     },
     getRuleStyleTokens() {
       propsPort.syncFromHost();
-      // (optional) ensure watches are observed before rule eval:
-      // dispatchPropsTasks(run);
-
       const current = propsFacade.get();
       return rules.evaluateStyleTokens(current);
     },
@@ -114,11 +96,9 @@ export function executeWithHost<P extends PropsBaseType>(
   (run as any).update = () => controller.update();
 
   // created callbacks: once, before first commit
-  engine.setPhase("callback");
-  propsPort.syncFromHost();
-  dispatchPropsTasks(run);
-  for (const cb of lifecycle.created) cb(run);
-  engine.setPhase("unknown");
+  callbackScope.run(run, () => {
+    for (const cb of lifecycle.created) cb(run);
+  });
 
   // initial commit
   const children = doRenderCommit("initial");
@@ -130,14 +110,11 @@ export function executeWithHost<P extends PropsBaseType>(
 
   host.schedule(() => {
     if (ended) return;
-
     timeline.mark("mounted:callbacks");
 
-    engine.setPhase("callback");
-    propsPort.syncFromHost();
-    dispatchPropsTasks(run);
-    for (const cb of lifecycle.mounted) cb(run);
-    engine.setPhase("unknown");
+    callbackScope.run(run, () => {
+      for (const cb of lifecycle.mounted) cb(run);
+    });
   });
 
   const invokeUnmounted = () => {
@@ -152,23 +129,17 @@ export function executeWithHost<P extends PropsBaseType>(
     const eventRegistry = (moduleHub as any)[__RT_EVENT_CALLBACKS] as
       | { clear: () => void }
       | undefined;
-
     eventRegistry?.clear?.();
 
-    engine.setPhase("callback");
-    // optional: sync + dispatch before unmounted callbacks
-    propsPort.syncFromHost();
-    dispatchPropsTasks(run);
-
-    for (const cb of lifecycle.unmounted) cb(run);
-    engine.setPhase("unknown");
+    callbackScope.run(run, () => {
+      for (const cb of lifecycle.unmounted) cb(run);
+    });
     timeline.mark("unmounted:callbacks");
 
     moduleHub.setProtoPhase("unmounted");
-    moduleHub.dispose();
+    inst.dispose();
     timeline.mark("dispose:done");
   };
 
-  engine.setPhase("unknown");
   return { children, controller, invokeUnmounted, caps: moduleHub };
 }

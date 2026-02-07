@@ -1,8 +1,8 @@
-// packages/runtime/src/execute/types.ts
+// packages/runtime/src/instance/execute/types.ts
 import { TemplateChildren } from "@proto-ui/core";
 import { PropsBaseType } from "@proto-ui/types";
-import { LifecycleRegistry } from "../handles/def";
-import { ModuleHub } from "../module-hub";
+import { LifecycleRegistry } from "../../kernel/handles/def";
+import { ModuleHub } from "../../orchestrator/module-hub";
 
 export interface ExecuteOptions {
   props?: any;

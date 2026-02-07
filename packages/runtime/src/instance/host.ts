@@ -1,7 +1,7 @@
-// packages/runtime/src/host.ts
+// packages/runtime/src/instance/host.ts
 import type { TemplateChildren } from "@proto-ui/core";
 import type { PropsBaseType } from "@proto-ui/types";
-import type { ModuleHub } from "./module-hub";
+import type { ModuleHub } from "../orchestrator/module-hub";
 
 export interface RuntimeHost<P extends PropsBaseType> {
   /** For diagnostics / errors */
