@@ -1,5 +1,5 @@
 // packages/module-props/src/create.ts
-import { createModule } from "@proto-ui/module-base";
+import { createModule, defineModule } from "@proto-ui/module-base";
 import type { ModuleFactoryArgs } from "@proto-ui/module-base";
 import type { PropsBaseType } from "@proto-ui/types";
 
@@ -9,13 +9,14 @@ import { PropsModuleImpl } from "./impl";
 export function createPropsModule<P extends PropsBaseType>(
   ctx: ModuleFactoryArgs
 ): PropsModule<P> {
-  const { init, caps } = ctx;
+  const { init, caps, deps } = ctx;
 
   return createModule<"props", "instance", PropsFacade<P>, PropsPort<P>>({
     name: "props",
     scope: "instance",
     init,
     caps,
+    deps,
     build: ({ init, caps }) => {
       const impl = new PropsModuleImpl<P>(caps, init.prototypeName);
 
@@ -47,3 +48,9 @@ export function createPropsModule<P extends PropsBaseType>(
     },
   });
 }
+
+export const PropsModuleDef = defineModule({
+  name: "props",
+  deps: [],
+  create: createPropsModule,
+});

@@ -2,20 +2,21 @@ import type { ProtoPhase, StyleHandle } from "@proto-ui/core";
 import { illegalPhase } from "@proto-ui/core";
 import { FeedbackStyleRecorder } from "@proto-ui/core";
 
-import { createModule, ModuleBase } from "@proto-ui/module-base";
+import { createModule, defineModule, ModuleBase } from "@proto-ui/module-base";
 import type { ModuleFactoryArgs } from "@proto-ui/module-base";
 
 import type { FeedbackFacade, FeedbackModule } from "./types";
 import { EFFECTS_CAP } from "./caps";
 
 export function createFeedbackModule(ctx: ModuleFactoryArgs): FeedbackModule {
-  const { init, caps } = ctx;
+  const { init, caps, deps } = ctx;
 
   return createModule<"feedback", "instance", FeedbackFacade>({
     name: "feedback",
     scope: "instance",
     init,
     caps,
+    deps,
     build: ({ init, caps }) => {
       class Impl extends ModuleBase {
         private recorder = new FeedbackStyleRecorder();
@@ -126,3 +127,9 @@ export function createFeedbackModule(ctx: ModuleFactoryArgs): FeedbackModule {
     },
   });
 }
+
+export const FeedbackModuleDef = defineModule({
+  name: "feedback",
+  deps: [],
+  create: createFeedbackModule,
+});

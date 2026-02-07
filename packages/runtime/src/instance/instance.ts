@@ -2,13 +2,13 @@
 import type { Prototype, RunHandle, TemplateChildren } from "@proto-ui/core";
 import type { PropsBaseType } from "@proto-ui/types";
 
-import { createFeedbackModule } from "@proto-ui/module-feedback";
-import { createPropsModule } from "@proto-ui/module-props";
-import { createEventModule } from "@proto-ui/module-event";
-import { createStateModule } from "@proto-ui/module-state";
+import { FeedbackModuleDef } from "@proto-ui/module-feedback";
+import { PropsModuleDef } from "@proto-ui/module-props";
+import { EventModuleDef } from "@proto-ui/module-event";
+import { StateModuleDef } from "@proto-ui/module-state";
 import {
   __RUN_TEST_SYS,
-  createTestSysModule,
+  TestSysModuleDef,
   type TestSysPort,
 } from "@proto-ui/module-test-sys";
 
@@ -49,11 +49,11 @@ export function createRuntimeInstance<P extends PropsBaseType>(
   const moduleHub = new RuntimeModuleOrchestrator(
     { prototypeName: proto.name, getPhase },
     [
-      { name: "feedback", create: createFeedbackModule },
-      { name: "props", create: createPropsModule },
-      { name: "event", create: createEventModule },
-      { name: "state", create: createStateModule },
-      { name: "test-sys", create: createTestSysModule },
+      FeedbackModuleDef,
+      PropsModuleDef,
+      EventModuleDef,
+      StateModuleDef,
+      TestSysModuleDef,
     ]
   );
 

@@ -5,7 +5,4 @@ export type {
   ModuleWiring,
   AnyModule,
 } from "./types";
-export {
-  RuntimeModuleOrchestrator,
-  type ModuleDecl,
-} from "./runtime-module-orchestrator";
+export { RuntimeModuleOrchestrator } from "./runtime-module-orchestrator";

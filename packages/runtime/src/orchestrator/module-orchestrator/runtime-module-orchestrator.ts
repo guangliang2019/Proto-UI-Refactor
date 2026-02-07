@@ -1,6 +1,10 @@
 // packages/runtime/src/orchestrator/module-orchestrator/runtime-module-orchestrator.ts
-import type { ModuleFacade, ProtoPhase } from "@proto-ui/core";
-import type { CapEntries, CapsVaultView } from "@proto-ui/core";
+import type {
+  CapEntries,
+  CapsVaultView,
+  ModuleFacade,
+  ProtoPhase,
+} from "@proto-ui/core";
 import {
   SYS_CAP,
   type SystemCaps,
@@ -8,32 +12,12 @@ import {
   CapsVault,
 } from "@proto-ui/module-base";
 
+import type { ModuleDeps, ModuleDef } from "@proto-ui/module-base";
 import type { AnyModule, ModuleOrchestrator, ModuleWiring } from "./types";
 import type { CapsController } from "../caps";
+import { buildModuleGraph, type ModuleDepsSpec } from "./graph";
 
-type ModuleFactory = (ctx: {
-  init: { prototypeName: string };
-  caps: CapsVaultView; // IMPORTANT: view-only for modules
-}) => AnyModule;
-
-export type ModuleDecl = {
-  name: string;
-  create: ModuleFactory;
-
-  /**
-   * Hard dependencies:
-   * - must exist
-   * - must be initialized before this module
-   */
-  deps?: string[];
-
-  /**
-   * Optional dependencies:
-   * - if present, should be initialized before this module
-   * - if missing, ignore
-   */
-  optionalDeps?: string[];
-};
+export type ModuleDecl = ModuleDef;
 
 type ModuleRecord = {
   name: string;
@@ -124,12 +108,12 @@ export class RuntimeModuleOrchestrator implements ModuleOrchestrator {
     // -------------------------
     // validate + sort modules
     // -------------------------
-    const sorted = this.sortAndValidate(modules);
+    const graph = buildModuleGraph(this.prototypeName, modules);
 
     // -------------------------
     // create modules
     // -------------------------
-    for (const m of sorted) {
+    for (const m of graph.order) {
       const vault = new CapsVault();
 
       // base layer: SYS_CAP must survive host reset
@@ -139,9 +123,11 @@ export class RuntimeModuleOrchestrator implements ModuleOrchestrator {
       const controller = this.createController(m.name, vault);
 
       // create module (caps passed as view only)
+      const deps = this.createDepsAccess(m.name, graph.depsByName.get(m.name)!);
       const module: AnyModule = m.create({
         init: { prototypeName: this.prototypeName },
         caps: vault as unknown as CapsVaultView,
+        deps,
       });
 
       const rec: ModuleRecord = { name: m.name, vault, controller, module };
@@ -187,83 +173,52 @@ export class RuntimeModuleOrchestrator implements ModuleOrchestrator {
     };
   }
 
-  private sortAndValidate(modules: ModuleDecl[]): ModuleDecl[] {
-    // unique name check
-    const seen = new Set<string>();
-    for (const m of modules) {
-      if (seen.has(m.name)) {
+  private createDepsAccess(
+    moduleName: string,
+    spec: ModuleDepsSpec
+  ): ModuleDeps {
+    const allow = new Set<string>([...spec.hard, ...spec.optional]);
+    const require = (name: string) => {
+      if (!allow.has(name)) {
         throw new Error(
-          `[Runtime] duplicate module name: ${this.prototypeName}/${m.name}`
+          `[Runtime] ${this.prototypeName}/${moduleName} tried to access undeclared dep: ${name}`
         );
       }
-      seen.add(m.name);
-    }
-
-    const byName = new Map<string, ModuleDecl>();
-    for (const m of modules) byName.set(m.name, m);
-
-    const hardDeps = (m: ModuleDecl) => m.deps ?? [];
-    const optDeps = (m: ModuleDecl) => m.optionalDeps ?? [];
-
-    // validate hard deps existence
-    for (const m of modules) {
-      for (const d of hardDeps(m)) {
-        if (!byName.has(d)) {
-          throw new Error(
-            `[Runtime] missing module dependency: ${this.prototypeName}/${m.name} deps -> ${d}`
-          );
-        }
-      }
-    }
-
-    // Build graph edges: dep -> m
-    const indeg = new Map<string, number>();
-    const out = new Map<string, string[]>();
-
-    for (const m of modules) {
-      indeg.set(m.name, 0);
-      out.set(m.name, []);
-    }
-
-    const addEdge = (from: string, to: string) => {
-      out.get(from)!.push(to);
-      indeg.set(to, (indeg.get(to) ?? 0) + 1);
     };
 
-    for (const m of modules) {
-      for (const d of hardDeps(m)) addEdge(d, m.name);
-      for (const d of optDeps(m)) {
-        if (byName.has(d)) addEdge(d, m.name);
+    const requireFacade = <T extends ModuleFacade>(name: string): T => {
+      require(name);
+      const f = this.facades[name];
+      if (!f) {
+        throw new Error(
+          `[Runtime] ${this.prototypeName}/${moduleName} missing dep facade: ${name}`
+        );
       }
-    }
+      return f as T;
+    };
 
-    // Kahn topo sort
-    const q: string[] = [];
-    for (const [name, v] of indeg) if (v === 0) q.push(name);
-
-    const order: string[] = [];
-    while (q.length) {
-      const cur = q.shift()!;
-      order.push(cur);
-      for (const nxt of out.get(cur)!) {
-        const v = (indeg.get(nxt) ?? 0) - 1;
-        indeg.set(nxt, v);
-        if (v === 0) q.push(nxt);
+    const requirePort = <T>(name: string): T => {
+      require(name);
+      const p = this.ports[name];
+      if (!p) {
+        throw new Error(
+          `[Runtime] ${this.prototypeName}/${moduleName} missing dep port: ${name}`
+        );
       }
-    }
+      return p as T;
+    };
 
-    if (order.length !== modules.length) {
-      // find cycle-ish remainder for error msg
-      const remains = [...indeg.entries()]
-        .filter(([, v]) => v > 0)
-        .map(([k]) => k)
-        .join(", ");
-      throw new Error(
-        `[Runtime] module dependency cycle: ${this.prototypeName} remains=[${remains}]`
-      );
-    }
+    const tryFacade = <T extends ModuleFacade>(name: string): T | undefined => {
+      require(name);
+      return this.facades[name] as T | undefined;
+    };
 
-    return order.map((n) => byName.get(n)!);
+    const tryPort = <T>(name: string): T | undefined => {
+      require(name);
+      return this.ports[name] as T | undefined;
+    };
+
+    return { requireFacade, requirePort, tryFacade, tryPort };
   }
 
   // -------------------------

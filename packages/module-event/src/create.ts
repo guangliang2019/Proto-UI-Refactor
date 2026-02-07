@@ -1,18 +1,19 @@
 // packages/module-event/src/create.ts
-import { createModule } from "@proto-ui/module-base";
+import { createModule, defineModule } from "@proto-ui/module-base";
 import type { ModuleFactoryArgs } from "@proto-ui/module-base";
 
 import type { EventFacade, EventModule, EventPort } from "./types";
 import { EventModuleImpl } from "./impl";
 
 export function createEventModule(ctx: ModuleFactoryArgs): EventModule {
-  const { init, caps } = ctx;
+  const { init, caps, deps } = ctx;
 
   return createModule<"event", "instance", EventFacade, EventPort>({
     name: "event",
     scope: "instance",
     init,
     caps,
+    deps,
     build: ({ init, caps }) => {
       const impl = new EventModuleImpl(caps, init.prototypeName);
 
@@ -35,3 +36,9 @@ export function createEventModule(ctx: ModuleFactoryArgs): EventModule {
     },
   });
 }
+
+export const EventModuleDef = defineModule({
+  name: "event",
+  deps: [],
+  create: createEventModule,
+});
