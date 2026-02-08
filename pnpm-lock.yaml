@@ -41,6 +41,9 @@ importers:
       '@proto-ui/core':
         specifier: workspace:*
         version: link:../core
+      '@proto-ui/module-context':
+        specifier: workspace:*
+        version: link:../module-context
       '@proto-ui/module-event':
         specifier: workspace:*
         version: link:../module-event
@@ -71,6 +74,18 @@ importers:
       '@proto-ui/core':
         specifier: workspace:*
         version: link:../core
+
+  packages/module-context:
+    dependencies:
+      '@proto-ui/core':
+        specifier: workspace:*
+        version: link:../core
+      '@proto-ui/module-base':
+        specifier: workspace:*
+        version: link:../module-base
+      '@proto-ui/types':
+        specifier: workspace:*
+        version: link:../types
 
   packages/module-event:
     dependencies:
@@ -143,6 +158,9 @@ importers:
       '@proto-ui/module-base':
         specifier: workspace:*
         version: link:../module-base
+      '@proto-ui/module-context':
+        specifier: workspace:*
+        version: link:../module-context
       '@proto-ui/module-event':
         specifier: workspace:*
         version: link:../module-event

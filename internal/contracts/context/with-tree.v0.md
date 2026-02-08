@@ -1,7 +1,7 @@
 # internal/contracts/context/with-tree.v0.md
 
 > Status: Draft – implementation-ready (contract-first)
-> This contract specifies Proto UI **context**: tree-based provider resolution, setup-only subscription intent, runtime reads, value constraints, and state-handle readonly transformation.
+> This contract specifies Proto UI **context**: tree-based provider resolution, setup-only subscription intent, runtime reads and updates, and strict value constraints for v0 portability.
 
 ---
 
@@ -12,15 +12,16 @@
 Context provides:
 
 - A **tree-based** communication channel between components (provider → consumer).
-- Setup-only **subscription intent** and runtime-only **reads**.
+- Setup-only **subscription intent** with runtime **reads** and **updates**.
 - Deterministic provider resolution: **nearest provider wins**.
-- Runtime safety constraints for context values (including state-handle readonly transformation).
+- v0 portability constraints: context values are JSON-serializable **objects**.
 
 ### 0.2 Non-goals
 
-- Bidirectional/peer communication is out of scope for v0.
+- Bidirectional/peer communication beyond context (e.g. other channels) is out of scope for v0.
 - Connection-change notifications (connected/disconnected callbacks) are out of scope for v0.
-- Function “serialization” across runtimes is out of scope for v0 (functions may exist as opaque runtime references).
+- Compiler-stage portability and AST-based extraction are out of scope for v0.
+- Host-specific capabilities (e.g. `def.host`) are out of scope for context.
 
 ---
 
@@ -28,7 +29,7 @@ Context provides:
 
 - **ContextKey<T>**: a unique token (symbol-like) identifying a context channel.
 - **Provider**: a component instance that provides a value for a ContextKey.
-- **Consumer**: a component instance that subscribes/reads a ContextKey.
+- **Consumer**: a component instance that subscribes/reads/updates a ContextKey.
 - **Logical tree**: the runtime component tree (for WC it matches DOM tree).
 - **Nearest provider wins**: the consumer binds to the closest ancestor provider for the key.
 
@@ -66,13 +67,15 @@ Core MUST provide a ContextKey factory, e.g.:
 
 Context subscription APIs are setup-only:
 
-- `subscribe(key)` (required)
-- `trySubscribe(key)` (optional)
+- `subscribe(key, onChange?)` (required)
+- `trySubscribe(key, onChange?)` (optional)
+
+> Subscriptions declare intent and register an optional callback. The callback fires during runtime updates.
 
 ### 4.1 subscribe (required)
 
-- `subscribe(key)` MUST be callable only during setup.
-- If no provider is available for that key at setup time, `subscribe(key)` MUST throw.
+- `subscribe(key, onChange?)` MUST be callable only during setup.
+- If no provider is available for that key at setup time, `subscribe` MUST throw.
 
 Assumption in v0:
 
@@ -80,8 +83,8 @@ Assumption in v0:
 
 ### 4.2 trySubscribe (optional)
 
-- `trySubscribe(key)` MUST be callable only during setup.
-- If no provider is available at setup time, `trySubscribe(key)` MUST NOT throw.
+- `trySubscribe(key, onChange?)` MUST be callable only during setup.
+- If no provider is available at setup time, `trySubscribe` MUST NOT throw.
 
 ---
 
@@ -95,77 +98,86 @@ Read APIs are runtime-only:
 ### 5.1 read (required)
 
 - `read(key)` MUST be callable only during runtime callback phase.
-- `read(key)` MUST require prior `subscribe(key)` in setup.
-- If the subscription is disconnected at runtime (provider removed / tree changed), `read(key)` MUST throw.
+- `read(key)` MUST require prior `subscribe(key, onChange?)` in setup.
+- If the subscription is disconnected at runtime (provider removed / tree changed), `read` MUST throw.
 
 ### 5.2 tryRead (optional)
 
 - `tryRead(key)` MUST be callable only during runtime callback phase.
-- `tryRead(key)` MUST require prior `trySubscribe(key)` in setup.
-- If the subscription is disconnected or provider is absent, `tryRead(key)` MUST return `null`.
-
-> Note: In Proto UI, `undefined` is illegal as a context value.
-> In v0, `null` is reserved to represent “no context available” for optional reads.
+- `tryRead(key)` MUST require prior `trySubscribe(key, onChange?)` in setup.
+- If the subscription is disconnected or provider is absent, `tryRead` MUST return `null`.
 
 ---
 
-## 6. Provide rules
+## 6. Provide & update
 
 ### 6.1 Provide API phase
 
-- `provide(key, value)` MUST be setup-only.
+- `provide(key, defaultValue)` MUST be setup-only.
 
-### 6.2 Duplicate provide per instance
+### 6.2 Update function (provider-side)
+
+- `provide` MUST return an `update` function for the provider to use.
+- `update` is runtime-only. Any setup-time invocation MUST throw (phase guard).
+- `update(next)` publishes a new context value for the key.
+- `update` MAY accept an updater function: `update(prev => next)`.
+
+### 6.3 Update function (consumer-side)
+
+- `run.context.update(key, next)` is runtime-only.
+- A consumer MUST have previously subscribed to the key (via `subscribe` or `trySubscribe`) to call `update`.
+- The `run.context.update` signature mirrors the provider-side `update` (including updater function overload).
+
+### 6.4 tryUpdate (optional)
+
+- `run.context.tryUpdate(key, next)` is runtime-only and MUST require prior `trySubscribe`.
+- If the context is unavailable (no provider or disconnected), `tryUpdate` MUST return `false` and perform no update.
+- If the update succeeds, `tryUpdate` MUST return `true`.
+
+### 6.5 Duplicate provide per instance
 
 - A component instance MUST NOT provide the same key more than once.
 - Duplicate provide MUST throw.
 
-### 6.3 Extension APIs (deferred)
-
-- APIs for extending already-provided values are optional and not required in v0.
-
 ---
 
-## 7. Context value constraints
+## 7. Value constraints & portability (v0)
 
 ### 7.1 Value domain
 
-- Context values MUST NOT be `undefined`.
-- Context values MUST NOT be `null`.
-- In v0, `null` is reserved as the “no context” signal returned by `tryRead` when provider is absent or disconnected.
+- Context values MUST be plain objects and JSON-serializable.
+- `undefined` is illegal in Proto UI prototypes.
+- The following are forbidden in context values:
+  - functions
+  - DOM/host references
+  - PrototypeRef
+  - State
+  - class instances
+  - circular references
+  - Map/Set/Date/RegExp or other non-JSON structures
 
-### 7.2 Portability constraints (v0)
+### 7.2 Null semantics
 
-Context values SHOULD be “portable-value friendly”:
+- A top-level value of `null` means **context unavailable** (no provider or disconnected).
+- `null` is allowed inside object fields.
+- Prototype syntax forbids `undefined`, so empty values use `null`.
+- Component authors MUST NOT set a context value to `null`.
 
-- JSON-like values (primitives, arrays, plain objects) are recommended.
-- Functions MAY be present as opaque runtime references.
-- Cross-platform portability of functions is out of scope for v0.
+### 7.3 Portability scope
 
-### 7.3 Runtime mutation constraint
-
-- Context values MUST be treated as immutable after setup.
-- Adding new keys to provided plain objects during runtime is prohibited by contract.
-
-Implementations MUST perform at least one validation pass at provide-time.
-(Deep runtime proxy enforcement is optional; not required in v0.)
+- v0 only promises **Adapter-stage** portability.
+- Compiler-stage portability and AST-based extraction are out of scope for v0.
 
 ---
 
-## 8. State-handle readonly transformation
+## 8. Subscription callbacks & notifications
 
-If a context value contains any state handle(s), the runtime MUST transform them to readonly handles before exposing to consumers.
+- `subscribe/trySubscribe` callbacks fire during runtime when context updates.
+- Callback signature: `(run, next, prev)`.
+- `next` and `prev` are JSON objects, or `null` if context is unavailable.
+- Update notifications are synchronous and MUST NOT be merged: every update enqueues exactly one notification.
 
-Readonly state handle properties:
-
-- MUST NOT provide: `set`, `setDefault`, `watch`, `subscribe`
-- MUST provide: `get`
-- MAY provide metadata if available (e.g. semantic/spec/id)
-
-Transformation scope:
-
-- MUST recursively traverse arrays and plain objects to find and transform embedded state handles.
-- For non-plain objects (class instances), behavior is implementation-defined; portability is not guaranteed.
+> v0 does not mandate async scheduling. Ordering MUST be deterministic.
 
 ---
 
@@ -173,10 +185,7 @@ Transformation scope:
 
 - Provider/consumer bindings MAY change if the logical tree changes.
 - v0 provides no explicit notification callbacks for re-binding.
-- Runtime reads enforce correctness:
-
-  - required `read` throws when disconnected
-  - optional `tryRead` returns `null` when disconnected or absent
+- Correctness is enforced by `read/tryRead` and subscription callback semantics.
 
 ---
 
@@ -186,9 +195,10 @@ Implementations MUST throw for:
 
 - Phase violations (setup-only/runtime-only misuse)
 - Missing provider for required `subscribe`
-- Missing prior subscription intent (`read` without `subscribe`, `tryRead` without `trySubscribe`)
+- Missing prior subscription intent (`read` without `subscribe`, `tryRead` without `trySubscribe`, `update` without subscribe)
 - Duplicate provide for the same key on the same instance
 - Disconnected required read
+- Invalid provided values
 
 ### 10.1 Error typing (minimum)
 
@@ -201,3 +211,4 @@ Recommended codes (v0):
 - `CONTEXT_SUBSCRIPTION_REQUIRED`
 - `CONTEXT_DUPLICATE_PROVIDE`
 - `CONTEXT_DISCONNECTED`
+- `CONTEXT_VALUE_INVALID`

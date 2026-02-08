@@ -8,7 +8,8 @@ Context is the **component-to-component** communication channel that is:
 - **provider → consumer** (single direction in v0)
 - **nearest provider wins**
 - **setup-only** for subscription intent
-- **runtime-only** for reads
+- **runtime-only** for reads and updates
+- **JSON-serializable object values** in v0
 
 These contracts define semantics and phase rules. Integration tests may verify composition (e.g. context → rule → style), but MUST NOT introduce new semantics beyond referenced contracts.
 
@@ -17,25 +18,21 @@ These contracts define semantics and phase rules. Integration tests may verify c
 ## Contract Set (v0)
 
 - `with-tree.v0.md`
-
-  - The normative contract for v0 context:
-
-    - ContextKey identity + debug name
-    - provider resolution (nearest wins)
-    - provide/subscribe/trySubscribe phase rules
-    - read/tryRead phase rules
-    - tree rebind behavior (no notifications in v0)
-    - value constraints
-    - state-handle readonly transformation
-    - error model (codes or equivalent)
+- The normative contract for v0 context covers:
+- ContextKey identity and debug name
+- provider resolution (nearest wins)
+- provide/subscribe/trySubscribe phase rules
+- read/tryRead/update/tryUpdate phase rules
+- tree rebind behavior (no notifications in v0)
+- value constraints and portability scope
+- subscription callback semantics
+- error model (codes or equivalent)
 
 - `with-tree.v0.impl-notes.md`
-
-  - Non-normative implementation notes:
-
-    - recommended internal data structures
-    - validation and performance tradeoffs
-    - suggested guard strategy and error codes
+- Non-normative implementation notes include:
+- recommended internal data structures
+- validation and performance tradeoffs
+- suggested guard strategy and error codes
 
 ---
 
@@ -48,9 +45,10 @@ These contracts define semantics and phase rules. Integration tests may verify c
 
 ## Out of Scope (v0)
 
-- Bidirectional/peer communication channels
+- Bidirectional/peer communication channels outside context
 - Connection-change notifications (e.g. onConnected/onDisconnected callbacks)
-- Cross-runtime portability of function values (functions are runtime references)
+- Compiler-stage portability and AST-based extraction
+- Host-specific capabilities (e.g. `def.host`)
 
 ---
 
@@ -59,5 +57,4 @@ These contracts define semantics and phase rules. Integration tests may verify c
 Context often composes with:
 
 - `rule` (when/then evaluation)
-- `state` (readonly handle transformation when embedded in context value)
 - adapter realization contracts (host tree representation, lifecycle)

@@ -2,6 +2,8 @@
 import {
   EventListenerToken,
   EventTypeV0,
+  JsonObject,
+  ContextKey,
   PropsBaseType,
   PropsSpecMap,
   StateEvent,
@@ -41,6 +43,19 @@ export interface RunHandle<Props extends PropsBaseType> {
     get(): Readonly<Props>;
     getRaw(): Readonly<Props & PropsBaseType>;
     isProvided(key: keyof Props): boolean;
+  };
+
+  context: {
+    read<T extends JsonObject>(key: ContextKey<T>): T;
+    tryRead<T extends JsonObject>(key: ContextKey<T>): T | null;
+    update<T extends JsonObject>(
+      key: ContextKey<T>,
+      next: T | ((prev: T) => T)
+    ): void;
+    tryUpdate<T extends JsonObject>(
+      key: ContextKey<T>,
+      next: T | ((prev: T) => T)
+    ): boolean;
   };
 }
 
@@ -88,7 +103,33 @@ export interface DefHandle<Props extends PropsBaseType> {
   };
 
   state: StateDefAPI;
+
+  context: {
+    provide<T extends JsonObject>(
+      key: ContextKey<T>,
+      defaultValue: T
+    ): (next: T | ((prev: T) => T)) => void;
+    subscribe<T extends JsonObject>(
+      key: ContextKey<T>,
+      onChange?: ContextOnChange<Props, T>
+    ): void;
+    trySubscribe<T extends JsonObject>(
+      key: ContextKey<T>,
+      onChange?: ContextOnChangeOptional<Props, T>
+    ): void;
+  };
 }
+
+export type ContextOnChange<P extends PropsBaseType, T extends JsonObject> = (
+  run: RunHandle<P>,
+  next: T,
+  prev: T
+) => void;
+
+export type ContextOnChangeOptional<
+  P extends PropsBaseType,
+  T extends JsonObject
+> = (run: RunHandle<P>, next: T | null, prev: T | null) => void;
 
 // render-time 句柄：构造模板 + 只读读取视图（read）
 // 注意：这里不叫 run，避免和 callback-time 的 run 混淆

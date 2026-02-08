@@ -24,6 +24,10 @@ import {
   EVENT_GLOBAL_TARGET_CAP,
   EVENT_ROOT_TARGET_CAP,
 } from "@proto-ui/module-event";
+import {
+  CONTEXT_INSTANCE_TOKEN_CAP,
+  CONTEXT_PARENT_CAP,
+} from "@proto-ui/module-context";
 import { __RUN_TEST_SYS, type TestSysPort } from "@proto-ui/module-test-sys";
 
 // Debug hook for contract tests / diagnostics.
@@ -32,6 +36,9 @@ import { __RUN_TEST_SYS, type TestSysPort } from "@proto-ui/module-test-sys";
 export const __WC_DEBUG_SYS = Symbol.for(
   "@proto-ui/adapter-web-component/__debug_sys"
 );
+const __WC_PROTO_INSTANCE = Symbol.for(
+  "@proto-ui/adapter-web-component/__proto_instance"
+);
 
 function assertKebabCase(tag: string) {
   if (!tag.includes("-") || tag.toLowerCase() !== tag) {
@@ -39,6 +46,24 @@ function assertKebabCase(tag: string) {
       `[WC Adapter] custom element name must be kebab-case and contain '-': ${tag}`
     );
   }
+}
+
+function isProtoInstance(node: Node | null): node is HTMLElement {
+  if (!node || !(node as any)) return false;
+  return (node as any)[__WC_PROTO_INSTANCE] === true;
+}
+
+function getProtoParent(instance: HTMLElement): HTMLElement | null {
+  let cur: Node | null = instance.parentNode;
+  while (cur) {
+    if (typeof ShadowRoot !== "undefined" && cur instanceof ShadowRoot) {
+      cur = cur.host;
+      continue;
+    }
+    if (isProtoInstance(cur)) return cur as HTMLElement;
+    cur = cur.parentNode;
+  }
+  return null;
 }
 
 export interface WebComponentAdapterOptions<
@@ -74,6 +99,7 @@ export function AdaptToWebComponent<Props extends PropsBaseType>(
       this._root = shadow
         ? (this.attachShadow({ mode: "open" }) as ShadowRoot)
         : this;
+      (this as any)[__WC_PROTO_INSTANCE] = true;
     }
 
     connectedCallback() {
@@ -137,6 +163,11 @@ export function AdaptToWebComponent<Props extends PropsBaseType>(
           event: () => [
             [EVENT_ROOT_TARGET_CAP, () => router.rootTarget],
             [EVENT_GLOBAL_TARGET_CAP, () => router.globalTarget],
+          ],
+          context: () => [
+            [CONTEXT_INSTANCE_TOKEN_CAP, thisEl],
+            [CONTEXT_PARENT_CAP, (inst: unknown) =>
+              getProtoParent(inst as HTMLElement)],
           ],
         },
       });

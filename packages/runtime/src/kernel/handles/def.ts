@@ -9,6 +9,7 @@ import type { FeedbackFacade } from "@proto-ui/module-feedback";
 import type { PropsFacade } from "@proto-ui/module-props";
 import type { EventFacade } from "@proto-ui/module-event";
 import type { StateFacade } from "@proto-ui/module-state";
+import type { ContextFacade } from "@proto-ui/module-context";
 import { RuntimeEventCallbacks } from "../event";
 
 export type LifecycleKind = "created" | "mounted" | "updated" | "unmounted";
@@ -47,6 +48,7 @@ export const createDefHandle = <P extends PropsBaseType>(
   const props = facades["props"] as PropsFacade<P>;
 
   const state = facades["state"] as StateFacade;
+  const context = facades["context"] as ContextFacade;
 
   const eventFacade = facades["event"] as EventFacade;
   const eventCallbacks = new RuntimeEventCallbacks<P>();
@@ -184,6 +186,27 @@ export const createDefHandle = <P extends PropsBaseType>(
       numberDiscrete(semantic, defaultValue, spec) {
         ensureSetup("def.state.numberDiscrete");
         return state.numberDiscrete(semantic, defaultValue, spec);
+      },
+    },
+
+    context: {
+      provide(key, defaultValue) {
+        ensureSetup("def.context.provide");
+        return context.provide(key, defaultValue);
+      },
+      subscribe(key, cb) {
+        ensureSetup("def.context.subscribe");
+        if (!cb) return context.subscribe(key);
+        return context.subscribe(key, (ctx, next, prev) =>
+          cb(ctx as RunHandle<P>, next, prev)
+        );
+      },
+      trySubscribe(key, cb) {
+        ensureSetup("def.context.trySubscribe");
+        if (!cb) return context.trySubscribe(key);
+        return context.trySubscribe(key, (ctx, next, prev) =>
+          cb(ctx as RunHandle<P>, next, prev)
+        );
       },
     },
   };

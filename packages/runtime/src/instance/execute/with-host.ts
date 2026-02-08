@@ -15,7 +15,12 @@ export function executeWithHost<P extends PropsBaseType>(
 ): ExecuteWithHostResult {
   const timeline = createTimeline();
 
-  const inst = createRuntimeInstance(proto, { allowRunUpdate: true });
+  const inst = createRuntimeInstance(proto, {
+    allowRunUpdate: true,
+    onModulesReady: (hub) => {
+      host.onRuntimeReady?.(hub.getWiring());
+    },
+  });
   inst.setTimeline(timeline);
 
   const { kernel, moduleHub, callbackScope } = inst;
@@ -32,8 +37,6 @@ export function executeWithHost<P extends PropsBaseType>(
   // initial props hydration (before any callbacks + before initial render)
   propsPort.applyRaw({ ...(host.getRawProps?.() ?? {}) });
   timeline.mark("host:ready");
-
-  host.onRuntimeReady?.(moduleHub.getWiring());
 
   const doRenderCommit = (kind: "initial" | "update") => {
     // pull latest raw before rendering

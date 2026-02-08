@@ -6,6 +6,7 @@ import { FeedbackModuleDef } from "@proto-ui/module-feedback";
 import { PropsModuleDef } from "@proto-ui/module-props";
 import { EventModuleDef } from "@proto-ui/module-event";
 import { StateModuleDef } from "@proto-ui/module-state";
+import { ContextModuleDef } from "@proto-ui/module-context";
 import {
   __RUN_TEST_SYS,
   TestSysModuleDef,
@@ -40,7 +41,10 @@ export type RuntimeInstance<P extends PropsBaseType> = {
 
 export function createRuntimeInstance<P extends PropsBaseType>(
   proto: Prototype<P>,
-  opt?: { allowRunUpdate?: boolean }
+  opt?: {
+    allowRunUpdate?: boolean;
+    onModulesReady?: (hub: ModuleOrchestrator) => void;
+  }
 ): RuntimeInstance<P> {
   // stable phase ref for SYS_CAP.execPhase() during module setup/runtime checks
   let phaseRef: ExecPhase = "unknown";
@@ -53,9 +57,12 @@ export function createRuntimeInstance<P extends PropsBaseType>(
       PropsModuleDef,
       EventModuleDef,
       StateModuleDef,
+      ContextModuleDef,
       TestSysModuleDef,
     ]
   );
+
+  opt?.onModulesReady?.(moduleHub);
 
   const kernel = createKernel<P>(proto, moduleHub, {
     allowRunUpdate: opt?.allowRunUpdate,
