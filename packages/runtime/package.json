@@ -11,6 +11,7 @@
     "@proto-ui/module-feedback": "workspace:*",
     "@proto-ui/module-props": "workspace:*",
     "@proto-ui/module-event": "workspace:*",
+    "@proto-ui/module-expose": "workspace:*",
     "@proto-ui/module-state": "workspace:*",
     "@proto-ui/module-context": "workspace:*",
     "@proto-ui/module-test-sys": "workspace:*"

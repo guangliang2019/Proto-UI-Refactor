@@ -24,6 +24,7 @@ import {
   EVENT_GLOBAL_TARGET_CAP,
   EVENT_ROOT_TARGET_CAP,
 } from "@proto-ui/module-event";
+import { EXPOSE_SET_EXPOSES_CAP } from "@proto-ui/module-expose";
 import {
   CONTEXT_INSTANCE_TOKEN_CAP,
   CONTEXT_PARENT_CAP,
@@ -93,6 +94,7 @@ export function AdaptToWebComponent<Props extends PropsBaseType>(
 
     private _applier: ReturnType<typeof createOwnedTwTokenApplier> | null =
       null;
+    private _exposes: Record<string, unknown> = {};
 
     constructor() {
       super();
@@ -163,6 +165,14 @@ export function AdaptToWebComponent<Props extends PropsBaseType>(
           event: () => [
             [EVENT_ROOT_TARGET_CAP, () => router.rootTarget],
             [EVENT_GLOBAL_TARGET_CAP, () => router.globalTarget],
+          ],
+          expose: () => [
+            [
+              EXPOSE_SET_EXPOSES_CAP,
+              (record: Record<string, unknown>) => {
+                this._exposes = record ?? {};
+              },
+            ],
           ],
           context: () => [
             [CONTEXT_INSTANCE_TOKEN_CAP, thisEl],
@@ -285,6 +295,7 @@ export function AdaptToWebComponent<Props extends PropsBaseType>(
 
       // expose update for convenience (existing behavior)
       (this as any).update = () => controller.update();
+      (this as any).getExposes = () => ({ ...(this._exposes ?? {}) });
 
       bindController(this, controller);
 

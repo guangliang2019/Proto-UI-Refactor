@@ -10,6 +10,7 @@ import type { PropsFacade } from "@proto-ui/module-props";
 import type { EventFacade } from "@proto-ui/module-event";
 import type { StateFacade } from "@proto-ui/module-state";
 import type { ContextFacade } from "@proto-ui/module-context";
+import type { ExposeFacade } from "@proto-ui/module-expose";
 import { RuntimeEventCallbacks } from "../event";
 
 export type LifecycleKind = "created" | "mounted" | "updated" | "unmounted";
@@ -36,19 +37,20 @@ export function createLifecycleRegistry<
   return { created: [], mounted: [], updated: [], unmounted: [] };
 }
 
-export const createDefHandle = <P extends PropsBaseType>(
+export const createDefHandle = <P extends PropsBaseType, E = Record<string, unknown>>(
   st: DefRuntimeState,
   life: LifecycleRegistry<P>,
   rules: RuleRegistry,
   modules: ModuleOrchestratorFacadeView,
   eventSink?: EventCallbacksSink<P>
-): DefHandle<P> => {
+): DefHandle<P, E> => {
   const facades = modules.getFacades();
   const feedback = facades["feedback"] as FeedbackFacade;
   const props = facades["props"] as PropsFacade<P>;
 
   const state = facades["state"] as StateFacade;
   const context = facades["context"] as ContextFacade;
+  const expose = facades["expose"] as ExposeFacade;
 
   const eventFacade = facades["event"] as EventFacade;
   const eventCallbacks = new RuntimeEventCallbacks<P>();
@@ -134,6 +136,11 @@ export const createDefHandle = <P extends PropsBaseType>(
           };
         },
       },
+    },
+
+    expose: (key, value) => {
+      ensureSetup("def.expose");
+      expose.expose(key as any, value as any);
     },
 
     rule: (spec: RuleSpec<any>) => {

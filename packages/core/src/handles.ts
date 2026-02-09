@@ -59,7 +59,10 @@ export interface RunHandle<Props extends PropsBaseType> {
   };
 }
 
-export interface DefHandle<Props extends PropsBaseType> {
+export interface DefHandle<
+  Props extends PropsBaseType,
+  Exposes = Record<string, unknown>
+> {
   lifecycle: {
     onCreated(cb: (run: RunHandle<Props>) => void): void;
     onMounted(cb: (run: RunHandle<Props>) => void): void;
@@ -85,6 +88,8 @@ export interface DefHandle<Props extends PropsBaseType> {
       use: (...handles: StyleHandle[]) => UnUse;
     };
   };
+
+  expose: <K extends keyof Exposes>(key: K, value: Exposes[K]) => void;
 
   rule: (spec: any) => void;
 

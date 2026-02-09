@@ -3,9 +3,12 @@ import type { PropsBaseType } from "@proto-ui/types";
 import type { DefHandle, RendererHandle } from "./handles";
 import type { TemplateChildren } from "./spec";
 
-export interface Prototype<Props extends PropsBaseType = PropsBaseType> {
+export interface Prototype<
+  Props extends PropsBaseType = PropsBaseType,
+  Exposes = Record<string, unknown>
+> {
   name: string;
-  setup: (def: DefHandle<Props>) => RenderFn | void;
+  setup: (def: DefHandle<Props, Exposes>) => RenderFn | void;
 }
 
 export type RenderFn = <Props extends PropsBaseType>(
@@ -13,9 +16,9 @@ export type RenderFn = <Props extends PropsBaseType>(
 ) => TemplateChildren;
 
 /** Thin wrapper: stabilize author-facing entry & improve inference */
-export function definePrototype<P extends PropsBaseType>(
-  proto: Prototype<P>
-): Prototype<P> {
+export function definePrototype<P extends PropsBaseType, E = Record<string, unknown>>(
+  proto: Prototype<P, E>
+): Prototype<P, E> {
   if (!proto || typeof proto !== "object") {
     throw new Error(`[Prototype] definePrototype() expects an object.`);
   }
@@ -32,15 +35,17 @@ export function definePrototype<P extends PropsBaseType>(
  * AsHook is still "a prototype authored by Component Author",
  * but its *import result* will be treated as borrowed in the future.
  */
-export interface AsHook<Props extends PropsBaseType = PropsBaseType>
-  extends Prototype<Props> {
+export interface AsHook<
+  Props extends PropsBaseType = PropsBaseType,
+  Exposes = Record<string, unknown>
+> extends Prototype<Props, Exposes> {
   kind: "asHook";
 }
 
-export function defineAsHook<P extends PropsBaseType>(
-  proto: Prototype<P>
-): AsHook<P> {
-  const p = definePrototype(proto) as AsHook<P>;
+export function defineAsHook<P extends PropsBaseType, E = Record<string, unknown>>(
+  proto: Prototype<P, E>
+): AsHook<P, E> {
+  const p = definePrototype(proto) as AsHook<P, E>;
   p.kind = "asHook";
 
   // Optional but useful: enforce naming convention early
