@@ -26,6 +26,11 @@ import {
 } from "@proto-ui/module-event";
 import { EXPOSE_SET_EXPOSES_CAP } from "@proto-ui/module-expose";
 import {
+  EXPOSE_STATE_WEB_MAP_CAP,
+  EXPOSE_STATE_WEB_MODE_CAP,
+  HOST_ELEMENT_CAP,
+} from "@proto-ui/module-expose-state-web";
+import {
   CONTEXT_INSTANCE_TOKEN_CAP,
   CONTEXT_PARENT_CAP,
 } from "@proto-ui/module-context";
@@ -73,6 +78,10 @@ export interface WebComponentAdapterOptions<
   shadow?: boolean;
   getProps?: (el: HTMLElement) => Partial<Props> | null | undefined;
   schedule?: (task: () => void) => void;
+  exposeStateWebMode?: {
+    allowContinuousAttr?: boolean;
+    allowStringVar?: boolean;
+  };
 }
 
 export function AdaptToWebComponent<Props extends PropsBaseType>(
@@ -84,6 +93,7 @@ export function AdaptToWebComponent<Props extends PropsBaseType>(
   const shadow = opt.shadow ?? false;
   const getProps = opt.getProps ?? (() => ({} as Partial<Props>));
   const schedule = opt.schedule ?? ((task) => queueMicrotask(task));
+  const exposeStateWebMode = opt.exposeStateWebMode;
 
   class ProtoElement extends HTMLElement {
     private _mountedOnce = false;
@@ -166,13 +176,34 @@ export function AdaptToWebComponent<Props extends PropsBaseType>(
             [EVENT_ROOT_TARGET_CAP, () => router.rootTarget],
             [EVENT_GLOBAL_TARGET_CAP, () => router.globalTarget],
           ],
-          expose: () => [
+          "expose-state": () => [
             [
               EXPOSE_SET_EXPOSES_CAP,
               (record: Record<string, unknown>) => {
                 this._exposes = record ?? {};
               },
             ],
+          ],
+          "expose-state-web": () => [
+            [HOST_ELEMENT_CAP, thisEl],
+            [
+              EXPOSE_STATE_WEB_MAP_CAP,
+              (semantic: string) => {
+                const base = semantic
+                  .trim()
+                  .replace(/\s+/g, "-")
+                  .replace(/\./g, "-")
+                  .replace(/[^a-zA-Z0-9\-]/g, "-")
+                  .toLowerCase();
+                return {
+                  dataAttr: `data-${base}`,
+                  cssVar: `--pui-${base}`,
+                };
+              },
+            ],
+            ...(exposeStateWebMode
+              ? [[EXPOSE_STATE_WEB_MODE_CAP, exposeStateWebMode] as const]
+              : []),
           ],
           context: () => [
             [CONTEXT_INSTANCE_TOKEN_CAP, thisEl],

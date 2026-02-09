@@ -5,6 +5,7 @@ import {
   NumberDiscreteStateDefineSpec,
   NumberRangeStateDefineSpec,
   PropsBaseType,
+  StateSpec,
   StateSetReason,
   StringStateDefineSpec,
 } from "@proto-ui/types";
@@ -47,6 +48,8 @@ export interface ObservedStateHandle<V, P extends PropsBaseType> {
 export interface ExposedStateHandle<V> {
   get(): V;
   subscribe(cb: StateSubscribeCallback<V>): Unsubscribe;
+  unsubscribe(off: Unsubscribe): void;
+  spec: StateSpec;
 }
 
 export interface StateDefAPI {

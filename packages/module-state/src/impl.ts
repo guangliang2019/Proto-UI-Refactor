@@ -189,6 +189,7 @@ export class StateModuleImpl {
     (wrapped as any).__stateId = (raw as any).__stateId;
     (wrapped as any).__stateSemantic = (raw as any).__stateSemantic ?? semantic;
     (wrapped as any).__stateKind = (raw as any).__stateKind;
+    (wrapped as any).__stateSpec = (raw as any).__stateSpec;
 
     return wrapped;
   }

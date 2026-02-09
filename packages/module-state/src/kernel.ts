@@ -60,6 +60,7 @@ export class StateKernel {
     (h as any).__stateId = id;
     (h as any).__stateSemantic = semantic;
     (h as any).__stateKind = spec.kind;
+    (h as any).__stateSpec = spec;
 
     return h;
   }

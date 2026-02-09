@@ -6,6 +6,8 @@ import { FeedbackModuleDef } from "@proto-ui/module-feedback";
 import { PropsModuleDef } from "@proto-ui/module-props";
 import { EventModuleDef } from "@proto-ui/module-event";
 import { ExposeModuleDef } from "@proto-ui/module-expose";
+import { ExposeStateModuleDef } from "@proto-ui/module-expose-state";
+import { ExposeStateWebModuleDef } from "@proto-ui/module-expose-state-web";
 import { StateModuleDef } from "@proto-ui/module-state";
 import { ContextModuleDef } from "@proto-ui/module-context";
 import {
@@ -58,6 +60,8 @@ export function createRuntimeInstance<P extends PropsBaseType>(
       PropsModuleDef,
       EventModuleDef,
       ExposeModuleDef,
+      ExposeStateModuleDef,
+      ExposeStateWebModuleDef,
       StateModuleDef,
       ContextModuleDef,
       TestSysModuleDef,

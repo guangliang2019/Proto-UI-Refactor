@@ -50,6 +50,12 @@ importers:
       '@proto-ui/module-expose':
         specifier: workspace:*
         version: link:../module-expose
+      '@proto-ui/module-expose-state':
+        specifier: workspace:*
+        version: link:../module-expose-state
+      '@proto-ui/module-expose-state-web':
+        specifier: workspace:*
+        version: link:../module-expose-state-web
       '@proto-ui/module-feedback':
         specifier: workspace:*
         version: link:../module-feedback
@@ -110,6 +116,39 @@ importers:
       '@proto-ui/module-base':
         specifier: workspace:*
         version: link:../module-base
+
+  packages/module-expose-state:
+    dependencies:
+      '@proto-ui/core':
+        specifier: workspace:*
+        version: link:../core
+      '@proto-ui/module-base':
+        specifier: workspace:*
+        version: link:../module-base
+      '@proto-ui/module-expose':
+        specifier: workspace:*
+        version: link:../module-expose
+      '@proto-ui/module-state':
+        specifier: workspace:*
+        version: link:../module-state
+      '@proto-ui/types':
+        specifier: workspace:*
+        version: link:../types
+
+  packages/module-expose-state-web:
+    dependencies:
+      '@proto-ui/core':
+        specifier: workspace:*
+        version: link:../core
+      '@proto-ui/module-base':
+        specifier: workspace:*
+        version: link:../module-base
+      '@proto-ui/module-expose-state':
+        specifier: workspace:*
+        version: link:../module-expose-state
+      '@proto-ui/types':
+        specifier: workspace:*
+        version: link:../types
 
   packages/module-feedback:
     dependencies:
@@ -179,6 +218,12 @@ importers:
       '@proto-ui/module-expose':
         specifier: workspace:*
         version: link:../module-expose
+      '@proto-ui/module-expose-state':
+        specifier: workspace:*
+        version: link:../module-expose-state
+      '@proto-ui/module-expose-state-web':
+        specifier: workspace:*
+        version: link:../module-expose-state-web
       '@proto-ui/module-feedback':
         specifier: workspace:*
         version: link:../module-feedback

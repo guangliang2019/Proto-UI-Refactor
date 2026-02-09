@@ -50,4 +50,43 @@ describe("expose contract (adapter-web-component)", () => {
 
     expect(el.getExposes()).toEqual({});
   });
+
+  it("exposed state is projected to external handle with spec and subscribe", async () => {
+    const events: any[] = [];
+
+    const P: Prototype = {
+      name: "x-expose-state-basic",
+      setup(def) {
+        const s = def.state.bool("ready", false);
+        def.expose("ready", s);
+        def.lifecycle.onMounted(() => {
+          s.set(true);
+        });
+        return (r) => [r.el("div", "ok")];
+      },
+    };
+
+    AdaptToWebComponent(P);
+
+    const el = document.createElement("x-expose-state-basic") as any;
+    document.body.appendChild(el);
+
+    const exposes = el.getExposes();
+    const ready = exposes.ready;
+    expect(ready).toBeTruthy();
+    expect(typeof ready.get).toBe("function");
+    expect(typeof ready.subscribe).toBe("function");
+    expect(typeof ready.unsubscribe).toBe("function");
+    expect(ready.spec).toBeTruthy();
+    expect(ready.spec.kind).toBe("bool");
+    expect((ready as any).set).toBeUndefined();
+
+    const off = ready.subscribe((e: any) => events.push(e));
+    await Promise.resolve();
+
+    expect(events.length).toBeGreaterThan(0);
+    expect(events[0].type).toBe("next");
+
+    off();
+  });
 });
