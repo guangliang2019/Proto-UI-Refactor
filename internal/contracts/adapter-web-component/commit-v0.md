@@ -3,7 +3,7 @@
 ## Status
 
 - Version: v0
-- Target: `@proto-ui/adapter-web-component`
+- Target: `@proto-ui/adapters.web-component`
 - Applies to: Light DOM + Shadow DOM modes
 
 ## Glossary
@@ -100,19 +100,19 @@ The following tests MUST exist and remain green:
 
 ### Slot (Light DOM)
 
-- `packages/adapter-web-component/test/contracts/slot-light-dom.v0.contract.test.ts`
+- `packages/adapters/web-component/test/contracts/slot-light-dom.v0.contract.test.ts`
 
 ### Slot (Shadow DOM)
 
-- `packages/adapter-web-component/test/contracts/slot-shadow-dom.v0.contract.test.ts` (recommended; may be added later)
+- `packages/adapters/web-component/test/contracts/slot-shadow-dom.v0.contract.test.ts` (recommended; may be added later)
 
 ### Full rebuild semantics
 
-- `packages/adapter-web-component/test/contracts/commit.full-rebuild.v0.contract.test.ts`
+- `packages/adapters/web-component/test/contracts/commit.full-rebuild.v0.contract.test.ts`
 
 ### Style carrier
 
-- `packages/adapter-web-component/test/contracts/template-style.carrier.v0.contract.test.ts`
+- `packages/adapters/web-component/test/contracts/template-style.carrier.v0.contract.test.ts`
 
 ## Rationale (Informative)
 

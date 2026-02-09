@@ -170,6 +170,6 @@ over authoring convenience.
 ## Trace Map (Recommended to Keep Updated)
 
 - Reference tests (Web Component adapter):
-  - `packages/adapter-web-component/test/commit.test.ts`
+  - `packages/adapters/web-component/test/commit.test.ts`
 - Related contracts:
   - `internal/contracts/template/normalize.v0.md`

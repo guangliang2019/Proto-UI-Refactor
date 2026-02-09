@@ -187,7 +187,7 @@ const P: Prototype = {
 
 - 参考测试（Web Component adapter）：
 
-  - `packages/adapter-web-component/test/commit.test.ts`（basic / array expansion / slot）
+  - `packages/adapters/web-component/test/commit.test.ts`（basic / array expansion / slot）
 
 - 相关契约：
 

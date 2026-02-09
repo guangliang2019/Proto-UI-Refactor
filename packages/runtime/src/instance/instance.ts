@@ -2,23 +2,23 @@
 import type { Prototype, RunHandle, TemplateChildren } from "@proto-ui/core";
 import type { PropsBaseType } from "@proto-ui/types";
 
-import { FeedbackModuleDef } from "@proto-ui/module-feedback";
-import { PropsModuleDef } from "@proto-ui/module-props";
-import { EventModuleDef } from "@proto-ui/module-event";
-import { ExposeModuleDef } from "@proto-ui/module-expose";
-import { ExposeStateModuleDef } from "@proto-ui/module-expose-state";
-import { ExposeStateWebModuleDef } from "@proto-ui/module-expose-state-web";
-import { StateModuleDef } from "@proto-ui/module-state";
-import { ContextModuleDef } from "@proto-ui/module-context";
+import { FeedbackModuleDef } from "@proto-ui/modules.feedback";
+import { PropsModuleDef } from "@proto-ui/modules.props";
+import { EventModuleDef } from "@proto-ui/modules.event";
+import { ExposeModuleDef } from "@proto-ui/modules.expose";
+import { ExposeStateModuleDef } from "@proto-ui/modules.expose-state";
+import { ExposeStateWebModuleDef } from "@proto-ui/modules.expose-state-web";
+import { StateModuleDef } from "@proto-ui/modules.state";
+import { ContextModuleDef } from "@proto-ui/modules.context";
 import {
   __RUN_TEST_SYS,
   TestSysModuleDef,
   type TestSysPort,
-} from "@proto-ui/module-test-sys";
+} from "@proto-ui/modules.test-sys";
 
 import type { ModuleOrchestrator } from "../orchestrator/module-orchestrator";
 import { RuntimeModuleOrchestrator } from "../orchestrator/module-orchestrator";
-import type { ExecPhase } from "@proto-ui/module-base";
+import type { ExecPhase } from "@proto-ui/modules.base";
 import { __RT_EVENT_CALLBACKS } from "../kernel/event";
 
 import { CallbackScope } from "./execute/callback-scope";

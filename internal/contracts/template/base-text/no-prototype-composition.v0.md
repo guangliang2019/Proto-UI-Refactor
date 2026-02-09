@@ -160,6 +160,6 @@ Proto UI 明确选择
 ## Trace Map（追踪点，建议保持更新）
 
 - 参考测试（Web Component adapter）：
-  - `packages/adapter-web-component/test/commit.test.ts`
+  - `packages/adapters/web-component/test/commit.test.ts`
 - 相关契约：
   - `internal/contracts/template/normalize.v0.md`

@@ -24,53 +24,57 @@ importers:
         specifier: ^2.0.0
         version: 2.1.9(happy-dom@15.11.7)
 
-  packages/adapter-base:
+  packages/adapters/base:
     dependencies:
       '@proto-ui/core':
         specifier: workspace:*
-        version: link:../core
+        version: link:../../core
       '@proto-ui/runtime':
         specifier: workspace:*
-        version: link:../runtime
+        version: link:../../runtime
+    devDependencies:
+      '@proto-ui/modules.event':
+        specifier: workspace:*
+        version: link:../../modules/event
 
-  packages/adapter-web-component:
+  packages/adapters/web-component:
     dependencies:
-      '@proto-ui/adapter-base':
+      '@proto-ui/adapters.base':
         specifier: workspace:*
-        version: link:../adapter-base
+        version: link:../base
       '@proto-ui/core':
         specifier: workspace:*
-        version: link:../core
-      '@proto-ui/module-context':
+        version: link:../../core
+      '@proto-ui/modules.context':
         specifier: workspace:*
-        version: link:../module-context
-      '@proto-ui/module-event':
+        version: link:../../modules/context
+      '@proto-ui/modules.event':
         specifier: workspace:*
-        version: link:../module-event
-      '@proto-ui/module-expose':
+        version: link:../../modules/event
+      '@proto-ui/modules.expose':
         specifier: workspace:*
-        version: link:../module-expose
-      '@proto-ui/module-expose-state':
+        version: link:../../modules/expose
+      '@proto-ui/modules.expose-state':
         specifier: workspace:*
-        version: link:../module-expose-state
-      '@proto-ui/module-expose-state-web':
+        version: link:../../modules/expose-state
+      '@proto-ui/modules.expose-state-web':
         specifier: workspace:*
-        version: link:../module-expose-state-web
-      '@proto-ui/module-feedback':
+        version: link:../../modules/expose-state-web
+      '@proto-ui/modules.feedback':
         specifier: workspace:*
-        version: link:../module-feedback
-      '@proto-ui/module-props':
+        version: link:../../modules/feedback
+      '@proto-ui/modules.props':
         specifier: workspace:*
-        version: link:../module-props
-      '@proto-ui/module-test-sys':
+        version: link:../../modules/props
+      '@proto-ui/modules.test-sys':
         specifier: workspace:*
-        version: link:../module-test-sys
+        version: link:../../modules/test-sys
       '@proto-ui/runtime':
         specifier: workspace:*
-        version: link:../runtime
+        version: link:../../runtime
       '@proto-ui/types':
         specifier: workspace:*
-        version: link:../types
+        version: link:../../types
 
   packages/core:
     devDependencies:
@@ -78,167 +82,167 @@ importers:
         specifier: workspace:*
         version: link:../types
 
-  packages/module-base:
+  packages/legacy/rule:
     dependencies:
       '@proto-ui/core':
         specifier: workspace:*
-        version: link:../core
+        version: link:../../core
 
-  packages/module-context:
+  packages/modules/base:
     dependencies:
       '@proto-ui/core':
         specifier: workspace:*
-        version: link:../core
-      '@proto-ui/module-base':
+        version: link:../../core
+
+  packages/modules/context:
+    dependencies:
+      '@proto-ui/core':
         specifier: workspace:*
-        version: link:../module-base
+        version: link:../../core
+      '@proto-ui/modules.base':
+        specifier: workspace:*
+        version: link:../base
       '@proto-ui/types':
         specifier: workspace:*
-        version: link:../types
+        version: link:../../types
 
-  packages/module-event:
+  packages/modules/event:
     dependencies:
       '@proto-ui/core':
         specifier: workspace:*
-        version: link:../core
-      '@proto-ui/module-base':
+        version: link:../../core
+      '@proto-ui/modules.base':
         specifier: workspace:*
-        version: link:../module-base
+        version: link:../base
       '@proto-ui/types':
         specifier: workspace:*
-        version: link:../types
+        version: link:../../types
 
-  packages/module-expose:
+  packages/modules/expose:
     dependencies:
       '@proto-ui/core':
         specifier: workspace:*
-        version: link:../core
-      '@proto-ui/module-base':
+        version: link:../../core
+      '@proto-ui/modules.base':
         specifier: workspace:*
-        version: link:../module-base
+        version: link:../base
 
-  packages/module-expose-state:
+  packages/modules/expose-state:
     dependencies:
       '@proto-ui/core':
         specifier: workspace:*
-        version: link:../core
-      '@proto-ui/module-base':
+        version: link:../../core
+      '@proto-ui/modules.base':
         specifier: workspace:*
-        version: link:../module-base
-      '@proto-ui/module-expose':
+        version: link:../base
+      '@proto-ui/modules.expose':
         specifier: workspace:*
-        version: link:../module-expose
-      '@proto-ui/module-state':
+        version: link:../expose
+      '@proto-ui/modules.state':
         specifier: workspace:*
-        version: link:../module-state
+        version: link:../state
       '@proto-ui/types':
         specifier: workspace:*
-        version: link:../types
+        version: link:../../types
 
-  packages/module-expose-state-web:
+  packages/modules/expose-state-web:
     dependencies:
       '@proto-ui/core':
         specifier: workspace:*
-        version: link:../core
-      '@proto-ui/module-base':
+        version: link:../../core
+      '@proto-ui/modules.base':
         specifier: workspace:*
-        version: link:../module-base
-      '@proto-ui/module-expose-state':
+        version: link:../base
+      '@proto-ui/modules.expose-state':
         specifier: workspace:*
-        version: link:../module-expose-state
+        version: link:../expose-state
       '@proto-ui/types':
         specifier: workspace:*
-        version: link:../types
+        version: link:../../types
 
-  packages/module-feedback:
+  packages/modules/feedback:
     dependencies:
       '@proto-ui/core':
         specifier: workspace:*
-        version: link:../core
-      '@proto-ui/module-base':
+        version: link:../../core
+      '@proto-ui/modules.base':
         specifier: workspace:*
-        version: link:../module-base
+        version: link:../base
 
-  packages/module-props:
+  packages/modules/props:
     dependencies:
       '@proto-ui/core':
         specifier: workspace:*
-        version: link:../core
-      '@proto-ui/module-base':
+        version: link:../../core
+      '@proto-ui/modules.base':
         specifier: workspace:*
-        version: link:../module-base
+        version: link:../base
       '@proto-ui/types':
         specifier: workspace:*
-        version: link:../types
+        version: link:../../types
 
-  packages/module-state:
+  packages/modules/state:
     dependencies:
       '@proto-ui/core':
         specifier: workspace:*
-        version: link:../core
-      '@proto-ui/module-base':
+        version: link:../../core
+      '@proto-ui/modules.base':
         specifier: workspace:*
-        version: link:../module-base
+        version: link:../base
       '@proto-ui/types':
         specifier: workspace:*
-        version: link:../types
+        version: link:../../types
 
-  packages/module-test-sys:
+  packages/modules/test-sys:
     dependencies:
       '@proto-ui/core':
         specifier: workspace:*
-        version: link:../core
-      '@proto-ui/module-base':
+        version: link:../../core
+      '@proto-ui/modules.base':
         specifier: workspace:*
-        version: link:../module-base
+        version: link:../base
       '@proto-ui/types':
         specifier: workspace:*
-        version: link:../types
-
-  packages/rule:
-    dependencies:
-      '@proto-ui/core':
-        specifier: workspace:*
-        version: link:../core
+        version: link:../../types
 
   packages/runtime:
     dependencies:
       '@proto-ui/core':
         specifier: workspace:*
         version: link:../core
-      '@proto-ui/module-base':
+      '@proto-ui/modules.base':
         specifier: workspace:*
-        version: link:../module-base
-      '@proto-ui/module-context':
+        version: link:../modules/base
+      '@proto-ui/modules.context':
         specifier: workspace:*
-        version: link:../module-context
-      '@proto-ui/module-event':
+        version: link:../modules/context
+      '@proto-ui/modules.event':
         specifier: workspace:*
-        version: link:../module-event
-      '@proto-ui/module-expose':
+        version: link:../modules/event
+      '@proto-ui/modules.expose':
         specifier: workspace:*
-        version: link:../module-expose
-      '@proto-ui/module-expose-state':
+        version: link:../modules/expose
+      '@proto-ui/modules.expose-state':
         specifier: workspace:*
-        version: link:../module-expose-state
-      '@proto-ui/module-expose-state-web':
+        version: link:../modules/expose-state
+      '@proto-ui/modules.expose-state-web':
         specifier: workspace:*
-        version: link:../module-expose-state-web
-      '@proto-ui/module-feedback':
+        version: link:../modules/expose-state-web
+      '@proto-ui/modules.feedback':
         specifier: workspace:*
-        version: link:../module-feedback
-      '@proto-ui/module-props':
+        version: link:../modules/feedback
+      '@proto-ui/modules.props':
         specifier: workspace:*
-        version: link:../module-props
-      '@proto-ui/module-state':
+        version: link:../modules/props
+      '@proto-ui/modules.state':
         specifier: workspace:*
-        version: link:../module-state
-      '@proto-ui/module-test-sys':
+        version: link:../modules/state
+      '@proto-ui/modules.test-sys':
         specifier: workspace:*
-        version: link:../module-test-sys
+        version: link:../modules/test-sys
       '@proto-ui/rule':
         specifier: workspace:*
-        version: link:../rule
+        version: link:../legacy/rule
       '@proto-ui/types':
         specifier: workspace:*
         version: link:../types

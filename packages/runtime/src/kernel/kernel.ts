@@ -19,8 +19,8 @@ import {
 } from "./handles";
 import { RuleRegistry } from "./rule";
 import type { ModuleOrchestratorFacadeView } from "../orchestrator/module-orchestrator/types";
-import type { PropsFacade } from "@proto-ui/module-props";
-import type { ExecPhase } from "@proto-ui/module-base";
+import type { PropsFacade } from "@proto-ui/modules.props";
+import type { ExecPhase } from "@proto-ui/modules.base";
 import type { RuntimeTimeline } from "./timeline";
 
 export type Kernel<P extends PropsBaseType> = {

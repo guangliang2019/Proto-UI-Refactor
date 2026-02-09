@@ -5,12 +5,12 @@ import type { RuleSpec } from "@proto-ui/rule";
 import type { PropsBaseType } from "@proto-ui/types";
 import { RuleRegistry } from "../rule";
 import type { ModuleOrchestratorFacadeView } from "../../orchestrator/module-orchestrator/types";
-import type { FeedbackFacade } from "@proto-ui/module-feedback";
-import type { PropsFacade } from "@proto-ui/module-props";
-import type { EventFacade } from "@proto-ui/module-event";
-import type { StateFacade } from "@proto-ui/module-state";
-import type { ContextFacade } from "@proto-ui/module-context";
-import type { ExposeFacade } from "@proto-ui/module-expose";
+import type { FeedbackFacade } from "@proto-ui/modules.feedback";
+import type { PropsFacade } from "@proto-ui/modules.props";
+import type { EventFacade } from "@proto-ui/modules.event";
+import type { StateFacade } from "@proto-ui/modules.state";
+import type { ContextFacade } from "@proto-ui/modules.context";
+import type { ExposeFacade } from "@proto-ui/modules.expose";
 import { RuntimeEventCallbacks } from "../event";
 
 export type LifecycleKind = "created" | "mounted" | "updated" | "unmounted";

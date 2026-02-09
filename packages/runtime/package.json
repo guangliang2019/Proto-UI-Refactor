@@ -7,16 +7,16 @@
     "@proto-ui/core": "workspace:*",
     "@proto-ui/rule": "workspace:*",
     "@proto-ui/types": "workspace:*",
-    "@proto-ui/module-base": "workspace:*",
-    "@proto-ui/module-feedback": "workspace:*",
-    "@proto-ui/module-props": "workspace:*",
-    "@proto-ui/module-event": "workspace:*",
-    "@proto-ui/module-expose": "workspace:*",
-    "@proto-ui/module-expose-state": "workspace:*",
-    "@proto-ui/module-expose-state-web": "workspace:*",
-    "@proto-ui/module-state": "workspace:*",
-    "@proto-ui/module-context": "workspace:*",
-    "@proto-ui/module-test-sys": "workspace:*"
+    "@proto-ui/modules.base": "workspace:*",
+    "@proto-ui/modules.feedback": "workspace:*",
+    "@proto-ui/modules.props": "workspace:*",
+    "@proto-ui/modules.event": "workspace:*",
+    "@proto-ui/modules.expose": "workspace:*",
+    "@proto-ui/modules.expose-state": "workspace:*",
+    "@proto-ui/modules.expose-state-web": "workspace:*",
+    "@proto-ui/modules.state": "workspace:*",
+    "@proto-ui/modules.context": "workspace:*",
+    "@proto-ui/modules.test-sys": "workspace:*"
   },
   "exports": {
     ".": {

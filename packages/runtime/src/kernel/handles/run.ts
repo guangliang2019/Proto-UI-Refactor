@@ -2,8 +2,8 @@
 import { PropsBaseType } from "@proto-ui/types";
 import type { ModuleOrchestratorFacadeView } from "../../orchestrator/module-orchestrator/types";
 import { RunHandle } from "@proto-ui/core";
-import { PropsFacade } from "@proto-ui/module-props";
-import { ContextFacade } from "@proto-ui/module-context";
+import { PropsFacade } from "@proto-ui/modules.props";
+import { ContextFacade } from "@proto-ui/modules.context";
 
 export const createRunHandle = <P extends PropsBaseType>(
   update: RunHandle<P>["update"],

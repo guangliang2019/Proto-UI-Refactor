@@ -289,5 +289,5 @@ event 系统必须能够正确应对以下情况：
 对应测试位于：
 
 ```
-packages/module-event/test/contract/
+packages/modules/event/test/contract/
 ```

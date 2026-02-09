@@ -80,7 +80,7 @@ It does **not** cover:
 
 **Adapter Implementation (Web Component)**
 
-- `packages/adapter-web-component/src/commit.ts`
+- `packages/adapters/web-component/src/commit.ts`
   - Shadow DOM slot mapping
   - Light DOM projection
   - Defensive rejection (multiple / named slot)
@@ -90,8 +90,8 @@ It does **not** cover:
 - Core contract:
   - `packages/core/test/contracts/template.slot.v0.contract.test.ts`
 - Adapter (Web Component):
-  - `packages/adapter-web-component/test/contract/template.slot.protocol.v0.contract.test.ts`
-  - `packages/adapter-web-component/test/contract/slot-light-dom.v0.contract.test.ts`
+  - `packages/adapters/web-component/test/contract/template.slot.protocol.v0.contract.test.ts`
+  - `packages/adapters/web-component/test/contract/slot-light-dom.v0.contract.test.ts`
 
 **Verified Semantics**
 
@@ -147,13 +147,13 @@ It does **not** cover:
 
 **Implementation (Web Component Adapter)**
 
-- `packages/adapter-web-component/src/commit.ts`
+- `packages/adapters/web-component/src/commit.ts`
   - `createElementForType`
   - `ERR_TEMPLATE_PROTOTYPE_REF_V0`
 
 **Verification**
 
-- `packages/adapter-web-component/test/contract/template.no-prototype-composition.v0.contract.test.ts`
+- `packages/adapters/web-component/test/contract/template.no-prototype-composition.v0.contract.test.ts`
 
 **Verified Semantics**
 

@@ -10,9 +10,9 @@ import {
   type SystemCaps,
   type ExecPhase,
   CapsVault,
-} from "@proto-ui/module-base";
+} from "@proto-ui/modules.base";
 
-import type { ModuleDeps, ModuleDef } from "@proto-ui/module-base";
+import type { ModuleDeps, ModuleDef } from "@proto-ui/modules.base";
 import type { AnyModule, ModuleOrchestrator, ModuleWiring } from "./types";
 import type { CapsController } from "../caps";
 import { buildModuleGraph, type ModuleDepsSpec } from "./graph";

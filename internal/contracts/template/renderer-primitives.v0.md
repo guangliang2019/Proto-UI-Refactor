@@ -269,7 +269,7 @@ This rule is defined by
   - `packages/core/src/template.ts`  
     (`createRendererPrimitives`, `normalizeChildren`, `TemplateNode` definitions)
 - Reference implementation (adapter-web-component):
-  - `packages/adapter-web-component/src/commit.ts`  
+  - `packages/adapters/web-component/src/commit.ts`  
     (PrototypeRef rejection, slot shadow/light mapping, multi-slot defense)
 - Related contracts:
   - `Template / Template Node v0`

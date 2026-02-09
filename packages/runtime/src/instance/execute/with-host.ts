@@ -4,8 +4,8 @@ import { PropsBaseType } from "@proto-ui/types";
 import { RuntimeHost } from "../host";
 import { ExecuteWithHostResult, RuntimeController } from "./types";
 import { createTimeline } from "../../kernel/timeline";
-import type { PropsFacade, PropsPort } from "@proto-ui/module-props";
-import { EventPort } from "@proto-ui/module-event";
+import type { PropsFacade, PropsPort } from "@proto-ui/modules.props";
+import { EventPort } from "@proto-ui/modules.event";
 import { __RT_EVENT_CALLBACKS } from "../../kernel/event";
 import { createRuntimeInstance } from "../instance";
 

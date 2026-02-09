@@ -56,7 +56,7 @@
 
 **实现（Adapter：Web Component）**
 
-- `packages/adapter-web-component/src/commit.ts`
+- `packages/adapters/web-component/src/commit.ts`
 
   - slot shadow / light DOM 行为
   - slot 防御性校验（多 slot / 非匿名）
@@ -69,8 +69,8 @@
 
 - Adapter（Web Component）：
 
-  - `packages/adapter-web-component/test/contract/template.slot.protocol.v0.contract.test.ts`
-  - `packages/adapter-web-component/test/contract/slot-light-dom.v0.contract.test.ts`
+  - `packages/adapters/web-component/test/contract/template.slot.protocol.v0.contract.test.ts`
+  - `packages/adapters/web-component/test/contract/slot-light-dom.v0.contract.test.ts`
 
 **验证要点**
 
@@ -117,14 +117,14 @@
 
 **实现（Adapter：Web Component）**
 
-- `packages/adapter-web-component/src/commit.ts`
+- `packages/adapters/web-component/src/commit.ts`
 
   - `createElementForType`
   - `ERR_TEMPLATE_PROTOTYPE_REF_V0`
 
 **测试（Contract-level）**
 
-- `packages/adapter-web-component/test/contract/template.no-prototype-composition.v0.contract.test.ts`
+- `packages/adapters/web-component/test/contract/template.no-prototype-composition.v0.contract.test.ts`
 
 **验证要点**
 

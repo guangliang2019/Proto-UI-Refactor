@@ -298,5 +298,5 @@ This contract is enforced by executable contract tests, including:
 Executable tests live under:
 
 ```
-packages/module-event/test/contract/
+packages/modules/event/test/contract/
 ```
