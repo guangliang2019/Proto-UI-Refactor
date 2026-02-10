@@ -11,6 +11,20 @@ export interface FeedbackFacade extends ModuleFacade {
   };
 }
 
+export type FeedbackPort = {
+  /**
+   * Runtime-only: apply merged style tokens directly.
+   * Intended for rule execution or adapter-driven updates.
+   */
+  applyMergedStyle(handle: StyleHandle): void;
+
+  /**
+   * Runtime-only: record a style use (returns unUse).
+   * Preserves ordering semantics (later use wins by position).
+   */
+  useStyleRuntime: (...handles: StyleHandle[]) => () => void;
+};
+
 /**
  * Optional internal hooks (runtime-facing).
  * If你不想暴露这些，就把它们留在实现文件里，不导出也行。

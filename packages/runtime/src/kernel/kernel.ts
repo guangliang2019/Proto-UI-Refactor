@@ -17,7 +17,7 @@ import {
   LifecycleRegistry,
   type EventCallbacksSink,
 } from "./handles";
-import { RuleRegistry } from "./rule";
+import type { RuleFacade } from "@proto-ui/modules.rule";
 import type { ModuleOrchestratorFacadeView } from "../orchestrator/module-orchestrator/types";
 import type { PropsFacade } from "@proto-ui/modules.props";
 import type { ExecPhase } from "@proto-ui/modules.base";
@@ -28,7 +28,7 @@ export type Kernel<P extends PropsBaseType> = {
   setPhase(p: Phase): void;
 
   lifecycle: LifecycleRegistry<P>;
-  rules: RuleRegistry;
+  rules: RuleFacade<P>;
 
   run: RunHandle<P>;
   read: RenderReadHandle<P>;
@@ -64,7 +64,7 @@ export function createKernel<P extends PropsBaseType>(
   };
 
   const lifecycle = createLifecycleRegistry<P>();
-  const rules = new RuleRegistry();
+  const rules = modules.getFacades()["rule"] as RuleFacade<P>;
 
   const def = createDefHandle<P>(st, lifecycle, rules, modules, opt?.eventSink);
 

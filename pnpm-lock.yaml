@@ -181,6 +181,18 @@ importers:
         specifier: workspace:*
         version: link:../../types
 
+  packages/modules/rule:
+    dependencies:
+      '@proto-ui/core':
+        specifier: workspace:*
+        version: link:../../core
+      '@proto-ui/modules.base':
+        specifier: workspace:*
+        version: link:../base
+      '@proto-ui/types':
+        specifier: workspace:*
+        version: link:../../types
+
   packages/modules/state:
     dependencies:
       '@proto-ui/core':
@@ -234,15 +246,15 @@ importers:
       '@proto-ui/modules.props':
         specifier: workspace:*
         version: link:../modules/props
+      '@proto-ui/modules.rule':
+        specifier: workspace:*
+        version: link:../modules/rule
       '@proto-ui/modules.state':
         specifier: workspace:*
         version: link:../modules/state
       '@proto-ui/modules.test-sys':
         specifier: workspace:*
         version: link:../modules/test-sys
-      '@proto-ui/rule':
-        specifier: workspace:*
-        version: link:../legacy/rule
       '@proto-ui/types':
         specifier: workspace:*
         version: link:../types

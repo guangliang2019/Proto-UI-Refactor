@@ -2,32 +2,45 @@
 
 ## Purpose
 
-This contract defines how rules are **declared during setup** and compiled
-into RuleIR.
-
+This contract defines how rules are declared during setup and compiled into RuleIR.
 Rule declarations are static and must not depend on runtime state.
 
 ---
 
-## API Shape
+## 0. Scope & Non-goals
+
+### 0.1 Scope (v0)
+
+- `def.rule(spec)` is setup-only
+- RuleSpec shape and constraints
+- RuleIR structure and invariants
+- Deterministic ordering of active rules
+- Error boundaries
+
+### 0.2 Non-goals (v0)
+
+- Does not define when/intent semantics (see corresponding contracts)
+- Does not define runtime evaluation (see `runtime.apply.v0.md`)
+- No runtime rule declaration
+
+---
+
+## 1. API Shape (v0)
 
 ```ts
 def.rule(spec: RuleSpec<Props>): void
 ```
 
-Calling `def.rule` outside of setup **MUST throw**.
+Calling `def.rule` outside setup **MUST throw**.
 
 ---
 
-## RuleSpec (v0)
+## 2. RuleSpec (v0)
 
 ```ts
 type RuleSpec<Props> = {
   label?: string;
   note?: string;
-
-  // Optional ordering key; larger values apply later
-  priority?: number;
 
   when: (w: WhenBuilder<Props>) => WhenExpr<Props>;
   intent: (i: IntentBuilder) => void;
@@ -36,22 +49,19 @@ type RuleSpec<Props> = {
 
 Rules:
 
-- `when` MUST be constructed using `WhenBuilder` only
-- `intent` MUST be constructed using `IntentBuilder` only
-- RuleSpec MUST be fully static during setup
+- `when` MUST be constructed via `WhenBuilder`
+- `intent` MUST be recorded via `IntentBuilder`
+- RuleSpec must be fully static during setup
 - No runtime closures may escape into RuleIR
 
 ---
 
-## Compilation Result: RuleIR
-
-Defining a rule MUST produce a RuleIR object:
+## 3. Compilation Output: RuleIR (v0)
 
 ```ts
 type RuleIR<Props> = {
   label?: string;
   note?: string;
-  priority?: number;
 
   deps: RuleDep<Props>[];
   when: WhenExpr<Props>;
@@ -59,7 +69,7 @@ type RuleIR<Props> = {
 };
 ```
 
-### RuleIR Invariants
+### 3.1 RuleIR Invariants
 
 - RuleIR MUST be pure data
 - RuleIR MUST be serializable in principle
@@ -67,23 +77,21 @@ type RuleIR<Props> = {
 
 ---
 
-## Ordering Semantics (v0)
+## 4. Ordering (v0)
 
 When multiple rules are active:
 
-1. Rules are ordered by `(priority ?? 0)`
-2. Ties are resolved by declaration order
+1. Order by declaration order only
 
-Intents are applied following this deterministic order.
-
-Conflict resolution is delegated to semantic merge.
+Intents apply in this deterministic order. Conflict resolution is delegated to semantic merge.
 
 ---
 
-## Errors
+## 5. Errors
 
 The following MUST throw synchronously:
 
 - calling `def.rule` outside setup
 - using non-builder values inside `when`
 - using unsupported operations inside `intent`
+

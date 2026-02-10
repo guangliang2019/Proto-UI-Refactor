@@ -1,9 +1,8 @@
 // packages/runtime/src/kernel/handles/def.ts
 import type { DefHandle, RunHandle, StyleHandle } from "@proto-ui/core";
 import { illegalPhase } from "../guard";
-import type { RuleSpec } from "@proto-ui/rule";
+import type { RuleSpec, RuleFacade } from "@proto-ui/modules.rule";
 import type { PropsBaseType } from "@proto-ui/types";
-import { RuleRegistry } from "../rule";
 import type { ModuleOrchestratorFacadeView } from "../../orchestrator/module-orchestrator/types";
 import type { FeedbackFacade } from "@proto-ui/modules.feedback";
 import type { PropsFacade } from "@proto-ui/modules.props";
@@ -40,7 +39,7 @@ export function createLifecycleRegistry<
 export const createDefHandle = <P extends PropsBaseType, E = Record<string, unknown>>(
   st: DefRuntimeState,
   life: LifecycleRegistry<P>,
-  rules: RuleRegistry,
+  rules: RuleFacade<P>,
   modules: ModuleOrchestratorFacadeView,
   eventSink?: EventCallbacksSink<P>
 ): DefHandle<P, E> => {
@@ -145,7 +144,7 @@ export const createDefHandle = <P extends PropsBaseType, E = Record<string, unkn
 
     rule: (spec: RuleSpec<any>) => {
       ensureSetup("def.rule");
-      rules.define(spec as any);
+      rules.rule(spec as any);
     },
 
     event: {

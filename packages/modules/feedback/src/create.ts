@@ -5,7 +5,8 @@ import { FeedbackStyleRecorder } from "@proto-ui/core";
 import { createModule, defineModule, ModuleBase } from "@proto-ui/modules.base";
 import type { ModuleFactoryArgs } from "@proto-ui/modules.base";
 
-import type { FeedbackFacade, FeedbackModule } from "./types";
+import type { FeedbackFacade, FeedbackModule, FeedbackPort } from "./types";
+import { mergeTwTokensV0 } from "@proto-ui/core";
 import { EFFECTS_CAP } from "./caps";
 
 export function createFeedbackModule(ctx: ModuleFactoryArgs): FeedbackModule {
@@ -44,6 +45,27 @@ export function createFeedbackModule(ctx: ModuleFactoryArgs): FeedbackModule {
           };
         }
 
+        /** runtime-only */
+        useStyleRuntime(handles: StyleHandle[]): () => void {
+          const op = "run.feedback.style.use";
+          if (this.protoPhase === "setup") {
+            throw illegalPhase(op, this.protoPhase, {
+              prototypeName: init.prototypeName,
+              hint: `Use 'def' only during setup.`,
+            });
+          }
+
+          const unUse = this.recorder.use(...handles);
+          this.dirty = true;
+          this.flushIfPossible();
+
+          return () => {
+            unUse();
+            this.dirty = true;
+            this.flushIfPossible();
+          };
+        }
+
         /** pure snapshot */
         exportMerged(): StyleHandle {
           const { tokens } = this.recorder.export();
@@ -75,11 +97,27 @@ export function createFeedbackModule(ctx: ModuleFactoryArgs): FeedbackModule {
           this.dirty = false;
 
           effects.queueStyle(merged);
+          this.flushRequested = true;
+          effects.requestFlush();
+        }
 
-          if (!this.flushRequested) {
-            this.flushRequested = true;
-            effects.requestFlush();
+        /** runtime: apply merged style directly (rule / adapter) */
+        applyMergedStyle(handle: StyleHandle): void {
+          if (this.protoPhase === "setup") return;
+          if (!this.caps.has(EFFECTS_CAP)) {
+            this.defer(() => this.applyMergedStyle(handle));
+            return;
           }
+          const effects = this.caps.get(EFFECTS_CAP);
+          // merge with existing recorded styles to preserve setup styles
+          const base = this.exportMerged();
+          const merged = mergeTwTokensV0([
+            ...base.tokens,
+            ...(handle?.tokens ?? []),
+          ]);
+          effects.queueStyle({ kind: "tw", tokens: merged.tokens });
+          effects.requestFlush();
+          this.flushRequested = true;
         }
 
         afterRenderCommit(): void {
@@ -114,6 +152,10 @@ export function createFeedbackModule(ctx: ModuleFactoryArgs): FeedbackModule {
 
       return {
         facade,
+        port: {
+          applyMergedStyle: (h) => impl.applyMergedStyle(h),
+          useStyleRuntime: (...handles) => impl.useStyleRuntime(handles),
+        } satisfies FeedbackPort,
         hooks: {
           onProtoPhase: (p: ProtoPhase) => impl.onProtoPhase(p),
           afterRenderCommit: () => impl.afterRenderCommit(),

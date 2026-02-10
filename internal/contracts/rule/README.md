@@ -1,168 +1,112 @@
-# Rule Contract Index
+# Rule (English)
 
-This directory defines **rule contracts** for Proto UI.
-
-Rule is a **declarative orchestration layer**:
-
-* it observes state, context, and other semantic inputs
-* it evaluates pure, serializable conditions (`when`)
-* it produces planned, analyzable **intents** (`intent`)
-* it MUST NOT execute imperative logic or perform mutation in v0
-
-Rule is designed to be:
-
-* portable across platforms
-* analyzable by compilers
-* traceable and optimizable at runtime
+> Status: Draft – v0 (Positioning & Stance)
+>
+> This is the English contract set overview for rule.
+> It explains rule's positioning, value, and stance on extension modules.
 
 ---
 
-## Design Philosophy
+## 1. Positioning & Value
 
-### Rule-first principle
+Rule is Proto UI's **declarative intent orchestration layer**:
 
-If a behavior can be expressed as a rule, **it SHOULD be expressed as a rule**.
+- Expresses “condition -> intent” as serializable RuleIR
+- Enables lossless cross-platform migration (e.g. TS prototype -> Dart prototype)
+- Provides stable inputs for optimization and compilation
 
-In the ideal case:
+In v0:
 
-* prototypes declare specs (props, state, context, feedback)
-* behavioral logic is composed almost entirely of rules
-* imperative callbacks are reduced to:
-
-  * feeding state machines
-  * bridging host-specific effects
-
-This maximizes:
-
-* cross-platform portability
-* semantic transparency
-* optimization and compilation opportunities
-
-Rule is intentionally **harder to misuse than callbacks**, even if it may feel
-less ergonomic in some cases.
+- Rule is one of the highest leverage mechanisms
+- It shifts behavior from imperative callbacks to analyzable data
+- It lays groundwork for future compiler work without being invalidated by v1
 
 ---
 
-## Rule Characteristics (v0)
+## 2. Stance on Rule Extension Packages
 
-* **Declarative**: rules describe *what intent applies under which condition*
-* **Serializable**: rule IR MUST be representable as pure data
-* **Observational**: rules observe inputs but do not mutate them
-* **Planned**: rule output is an **intent**, not an immediate effect
+Proto UI encourages rule extensions for **specific hosts / specific scenarios**:
 
-In v0, rule intent is intentionally limited to avoid semantic ambiguity.
+- Intervene only when conditions are clearly satisfied (strong optimization)
+- Integrate as modules without changing rule’s serializable core
+- Preserve v0 best practices as reusable assets
 
----
-
-## Contract Set (v0)
-
-### Core rule contracts
-
-* `define.setup-only.v0.md`
-
-  * Rules MUST be defined during setup phase only.
-
-* `when.expr.v0.md`
-
-  * Grammar and semantics of rule conditions.
-
-* `intent.v0.md`
-
-  * Structure and semantics of rule intent.
-
-* `runtime.apply.v0.md`
-
-  * How rule intents are applied at runtime.
+These extensions are recommended (though not the primary v0 workstream).
+Proto UI will actively encourage their accumulation.
 
 ---
 
-### State integration
+## 3. Web Recommended Practice (v0)
 
-* `deps.state.visibility.v0.md`
+When all are true:
 
-  * Which states a rule MAY depend on.
-  * Private state MAY be observed by rules.
+- `when` depends on exposed state
+- adapter enables `expose-state-web` (maps to CSS variables / DOM attributes)
+- intent is only `feedback.style`
 
-* `deps.state.wiring.v0.md`
-
-  * State changes MUST trigger rule re-evaluation.
-
----
-
-### Context integration
-
-* `deps.context.path.v0.md`
-
-  * Declarative access to context values and sub-properties.
-
-* `deps.context.wiring.v0.md`
-
-  * Conservative re-evaluation strategy for context-dependent rules.
+then the rule can be compiled into **static selector styles** with no runtime execution.
+This is semantically equivalent and recommended in v0.
 
 ---
 
-## Explicit v0 Restrictions
+## 4. Forward Compatibility
 
-To preserve analyzability and portability, v0 rules MUST NOT:
+Rule’s value does not disappear with compilers:
 
-* mutate state
-* invoke arbitrary user callbacks
-* depend on non-serializable values
-* encode imperative control flow
+- Clearer semantics create more optimization/compile headroom
+- Discovered best practices are retained as reusable extensions
 
-Any behavior requiring these MUST be expressed via:
-
-* explicit state machines
-* runtime callbacks
-* or higher-level abstractions built on top of rule
+Rule extensions are long-term assets, not short-term hacks.
 
 ---
 
-## Diagnostics and Observability
+## 5. Execution Layer (Overview)
 
-Implementations SHOULD provide diagnostics for:
+Execution has three layers:
 
-* rule dependency graphs (state/context)
-* rule evaluation frequency
-* rule intent conflicts or overrides
-* context-dependent re-evaluation warnings
+- **rule core**: evaluate + merge, default output is Plan
+- **executor**: separate module, turns Plan into execution
+- **adapter**: can customize executor via host-cap
 
-These diagnostics are **non-normative** but strongly recommended to support
-rule-first development at scale.
+Extensions may **short-circuit Plan** when conditions are met and execute directly or delegate to adapter.
 
 ---
 
-## Relationship to Other Modules
+## 6. Contract Index (v0)
 
-* **state**: primary observable input channel for rule
-* **context**: secondary, tree-scoped observable input
-* **feedback**: primary realization target of rule intent in v0
-* **event**: feeds state machines; rule does not directly bind events in v0
-* **compiler (future)**: rule IR is a first-class compilation target
+When dependencies:
+- `when.expr.v0.md`
+- `when.deps.props.v0.md`
+- `when.deps.state.v0.md`
+- `when.deps.context.v0.md`
+- `when.deps.state.wiring.v0.md`
+- `when.deps.context.wiring.v0.md`
 
----
+Intent capabilities:
+- `intent.compose.v0.md`
+- `intent.feedback.style.v0.md`
+- `intent.state.v0.md`
 
-## Forward Compatibility Notes
-
-Future versions of rule MAY introduce:
-
-* additional intent kinds (e.g. controlled state mutation)
-* finer-grained context dependency tracking
-* priority and conflict resolution semantics
-* compiler-driven rule optimization
-
-Such extensions MUST preserve the declarative core defined by v0 contracts.
+Other:
+- `define.setup-only.v0.md`
+- `runtime.apply.v0.md`
 
 ---
 
-## Summary
+## 7. Test Matrix Index (Suggested)
 
-Rule is the semantic backbone of Proto UI behavior.
+When dimensions:
+- props
+- state (Owned / Borrowed / Observed)
+- context
 
-It exists to:
+Intent dimensions:
+- feedback.style
+- state.set
 
-* replace ad-hoc imperative logic
-* expose intent as data
-* enable cross-platform correctness and optimization
+Suggested combinations:
+- when.props x intent.feedback.style
+- when.state(Owned/Borrowed/Observed) x intent.state
+- when.context x intent.feedback.style
+- when.context x intent.state
 
-If something *can* be a rule, it probably *should* be a rule.

@@ -1,16 +1,30 @@
-# rule/when.expr.v0.md
-
 # rule.when — Condition Expression Contract (v0)
 
 ## Purpose
 
-This contract defines the condition language used by rule declarations.
-
+Defines the condition language used by rule declarations.
 Conditions are declarative, analyzable, and dependency-tracked.
 
 ---
 
-## WhenExpr AST (v0)
+## 0. Scope & Non-goals
+
+### 0.1 Scope (v0)
+
+- WhenExpr AST
+- WhenValue inputs and semantics
+- WhenBuilder dependency recording
+- Equality and logical semantics
+
+### 0.2 Non-goals (v0)
+
+- No runtime scheduling policy (see wiring contracts)
+- No deep comparison or custom comparators
+- No side effects or imperative logic
+
+---
+
+## 1. WhenExpr AST (v0)
 
 ```ts
 type WhenExpr<Props> =
@@ -19,8 +33,7 @@ type WhenExpr<Props> =
   | { type: "eq"; left: WhenValue<Props>; right: WhenLiteral }
   | { type: "not"; expr: WhenExpr<Props> }
   | { type: "all"; exprs: WhenExpr<Props>[] }
-  | { type: "any"; exprs: WhenExpr<Props>[] }
-  | { type: "happens"; eventType: string };
+  | { type: "any"; exprs: WhenExpr<Props>[] };
 ```
 
 ```ts
@@ -34,7 +47,7 @@ type WhenLiteral = string | number | boolean | null;
 
 ---
 
-## WhenBuilder Rules
+## 2. WhenBuilder Rules
 
 `WhenBuilder` is setup-only and MUST record dependencies.
 
@@ -42,7 +55,6 @@ type WhenLiteral = string | number | boolean | null;
 w.prop(key)   -> { kind: "prop", key }
 w.state(s)    -> { kind: "state", id: s.id }
 w.ctx(key)    -> { kind: "context", key }
-w.event(type) -> { kind: "event", type }
 ```
 
 Dependency recording MUST be:
@@ -53,37 +65,32 @@ Dependency recording MUST be:
 
 ---
 
-## eq Semantics
+## 3. eq Semantics (v0)
 
 - Uses JS strict equality (`===`)
 - No deep comparison in v0
 
 ---
 
-## Logical Operators
+## 4. Logical Operators
 
 - `all([])` => true
 - `any([])` => false
-- Evaluation MUST follow logical truth tables
+- Otherwise follow standard truth tables
 
 ---
 
-## happens(eventType) — Trigger Gate
+## 5. Events & Reversibility (v0)
 
-- `happens` is not a stable boolean
-- It becomes true for exactly one evaluation cycle after the event occurs
-- It resets to false afterwards
-
-In v0:
-
-- The AST MUST be accepted
-- Dependencies MUST be recorded
-- Runtime MAY choose not to execute transient intents yet
+- v0 rules accept **state-shaped inputs only**
+- `when(event.happens)` is **not allowed**
+- Event dimensions must be represented as reversible state pairs (e.g. pressed/released)
 
 ---
 
-## Invariants
+## 6. Invariants
 
-- Expression evaluation MUST be pure
+- Evaluation MUST be pure
 - No side effects during evaluation
 - Identical inputs MUST yield identical results
+

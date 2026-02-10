@@ -8,6 +8,7 @@ import { EventModuleDef } from "@proto-ui/modules.event";
 import { ExposeModuleDef } from "@proto-ui/modules.expose";
 import { ExposeStateModuleDef } from "@proto-ui/modules.expose-state";
 import { ExposeStateWebModuleDef } from "@proto-ui/modules.expose-state-web";
+import { RuleModuleDef } from "@proto-ui/modules.rule";
 import { StateModuleDef } from "@proto-ui/modules.state";
 import { ContextModuleDef } from "@proto-ui/modules.context";
 import {
@@ -56,6 +57,7 @@ export function createRuntimeInstance<P extends PropsBaseType>(
   const moduleHub = new RuntimeModuleOrchestrator(
     { prototypeName: proto.name, getPhase },
     [
+      RuleModuleDef,
       FeedbackModuleDef,
       PropsModuleDef,
       EventModuleDef,

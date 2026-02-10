@@ -1,35 +1,48 @@
-# rule.runtime.apply — Evaluation & Plan Contract (v0)
+# rule.runtime.apply — Evaluation & Plan (v0)
 
 ## Purpose
 
-This contract defines how rule runtime evaluates RuleIR against observable
-inputs and produces a **Plan**.
-
-Rule runtime does not apply styles or mutate hosts.
+Defines how rule runtime evaluates RuleIR and produces a Plan.
+Rule runtime does not touch the host directly.
 
 ---
 
-## Evaluation Model (v0)
+## 0. Scope & Non-goals
+
+### 0.1 Scope (v0)
+
+- Evaluation flow
+- Plan output structure
+- Adapter boundary
+- Minimal wiring requirements
+
+### 0.2 Non-goals (v0)
+
+- Does not define rendering/scheduling strategies
+- Does not define host-specific application
+- Does not introduce cross-channel conflict resolution
+
+---
+
+## 1. Evaluation Model (v0)
 
 Given:
 
-- a set of RuleIR declarations
-- current observable values for their dependencies
+- a set of RuleIR
+- current observable values for dependencies
 
-Rule runtime performs:
+Runtime MUST:
 
-1. Evaluate each rule's `when` expression
-2. Select active rules
-3. Order active rules deterministically
-4. Collect intent ops in that order
-5. Concatenate style tokens
-6. Run semantic merge
+1. evaluate each rule's `when`
+2. select active rules
+3. order by declaration order
+4. collect intent ops
+5. merge per intent channel (see `intent.compose.v0.md`)
+6. output Plan by default, or be short-circuited by extensions
 
 ---
 
-## Plan Output (v0)
-
-The output of rule runtime is a Plan:
+## 2. Plan Output (v0)
 
 ```ts
 type RulePlanV0 = {
@@ -39,38 +52,72 @@ type RulePlanV0 = {
 ```
 
 - `tokens` MUST be semantic-merged
-- An empty token list represents no active style intent
+- empty token list means no active style intent
+
+> Plan is the **default output** that carries merged semantics.  
+> The executor is a separate module and can be customized by the adapter.  
+> Extensions may short-circuit Plan and must assume execution responsibility.  
+> As intent channels expand, Plan may expand accordingly.
 
 ---
 
-## Adapter Consumption
+## 3. Adapter Boundary
 
-Adapters:
+Adapter:
 
-- consume the Plan
-- decide scheduling and realization strategy
-- ensure the host reflects the latest tokens
+- consumes Plan
+- decides scheduling and realization strategy
+- ensures host reflects the latest tokens
 
-Rule runtime MUST NOT:
+Runtime MUST NOT:
 
-- call feedback recorders
-- touch the host
-- schedule rendering
+- touch the host or bypass adapter boundary
+- trigger rendering directly
 
----
+Executor boundary constraints:
 
-## Dependency Wiring (v0 Minimal)
-
-- `deps.kind === 'prop'` MUST be wired to resolved prop observation
-- On dependency change, rules MUST be re-evaluated
-
-State, context, and event deps may be stubbed in v0 tests,
-but deps MUST be present in RuleIR.
+- default executor must use channel facades, not host APIs
+- adapter may customize/replace executor via host-cap (no naming mandated)
+- extensions that short-circuit Plan must execute equivalently or delegate explicitly
 
 ---
 
-## Invariants
+## 4. Minimal Wiring (v0)
 
-- Evaluation MUST be deterministic
-- Given identical inputs, the Plan MUST be identical
-- Runtime MUST be free of side effects
+- `deps.kind === 'prop'` MUST be wired to resolved props observation
+- dependency changes MUST trigger re-evaluation
+
+State/context deps may be stubbed in v0 tests, but MUST be present in RuleIR.
+
+---
+
+## 5. State Intent Application (v0)
+
+When state intent exists:
+
+- runtime MUST merge per-state target values first
+- merge uses the layer model (see `intent.state.v0.md`)
+- per evaluation cycle, each state is set **at most once**
+- no set if target equals current value
+
+---
+
+## 6. Web Optimization Note (Recommended)
+
+When all are true:
+
+- `when` depends on exposed state
+- adapter enables `expose-state-web` (CSS variables / DOM attributes)
+- intent is only `feedback.style`
+
+rules may compile into static selector styles and skip runtime execution.
+This is semantically equivalent and recommended in v0.
+
+---
+
+## 7. Invariants
+
+- evaluation MUST be deterministic
+- identical inputs MUST produce identical merged results (Plan or equivalent execution)
+- runtime MUST NOT bypass adapter boundary
+

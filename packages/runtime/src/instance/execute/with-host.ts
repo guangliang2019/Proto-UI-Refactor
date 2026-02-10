@@ -5,6 +5,7 @@ import { RuntimeHost } from "../host";
 import { ExecuteWithHostResult, RuntimeController } from "./types";
 import { createTimeline } from "../../kernel/timeline";
 import type { PropsFacade, PropsPort } from "@proto-ui/modules.props";
+import type { RulePort } from "@proto-ui/modules.rule";
 import { EventPort } from "@proto-ui/modules.event";
 import { __RT_EVENT_CALLBACKS } from "../../kernel/event";
 import { createRuntimeInstance } from "../instance";
@@ -24,10 +25,11 @@ export function executeWithHost<P extends PropsBaseType>(
   inst.setTimeline(timeline);
 
   const { kernel, moduleHub, callbackScope } = inst;
-  const { lifecycle, rules, run } = kernel;
+  const { lifecycle, run } = kernel;
 
   const facades = moduleHub.getFacades();
   const propsFacade = facades["props"] as PropsFacade<P>;
+  const rulePort = moduleHub.getPort<RulePort<P>>("rule");
 
   const propsPort = moduleHub.getPort<PropsPort<P>>("props");
   if (!propsPort) {
@@ -90,6 +92,18 @@ export function executeWithHost<P extends PropsBaseType>(
 
   let controller!: RuntimeController;
 
+  const evaluateRuleStyle = () => {
+    propsPort.syncFromHost();
+    const current = propsFacade.get();
+    if (!rulePort) return [];
+    const res = rulePort.evaluate({ props: current });
+    if (res.kind === "plan" && res.plan.kind === "style.tokens") {
+      const tokens = res.plan.tokens;
+      return tokens;
+    }
+    return [];
+  };
+
   controller = {
     applyRawProps(nextRaw) {
       // must trigger watches but must NOT render/commit
@@ -100,9 +114,7 @@ export function executeWithHost<P extends PropsBaseType>(
       doRenderCommit("update");
     },
     getRuleStyleTokens() {
-      propsPort.syncFromHost();
-      const current = propsFacade.get();
-      return rules.evaluateStyleTokens(current);
+      return evaluateRuleStyle();
     },
   };
 
