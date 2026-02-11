@@ -14,6 +14,7 @@
     "@proto-ui/modules.expose": "workspace:*",
     "@proto-ui/modules.expose-state": "workspace:*",
     "@proto-ui/modules.expose-state-web": "workspace:*",
+    "@proto-ui/modules.rule-expose-state-web": "workspace:*",
     "@proto-ui/modules.state": "workspace:*",
     "@proto-ui/modules.context": "workspace:*",
     "@proto-ui/modules.test-sys": "workspace:*"

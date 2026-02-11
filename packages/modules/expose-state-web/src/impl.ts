@@ -21,6 +21,7 @@ type Binding = {
   attr?: string;
   cssVar?: string;
   kind?: StateSpec["kind"];
+  stateId?: string;
 };
 
 function defaultNameMap(semantic: string) {
@@ -52,6 +53,14 @@ export class ExposeStateWebModuleImpl extends ModuleBase {
   private disposed = false;
 
   private bindings: Binding[] = [];
+  private active = false;
+  private exposedByStateId = new Map<string, {
+    stateId: string;
+    key: string;
+    kind: StateSpec["kind"];
+    attr?: string;
+    cssVar?: string;
+  }>();
 
   constructor(caps: CapsVaultView, deps: ModuleDeps) {
     super(caps);
@@ -84,9 +93,18 @@ export class ExposeStateWebModuleImpl extends ModuleBase {
   private refresh(): void {
     if (this.disposed) return;
 
-    if (!this.caps.has(HOST_ELEMENT_CAP)) return;
+    if (!this.caps.has(HOST_ELEMENT_CAP)) {
+      this.active = false;
+      this.exposedByStateId.clear();
+      return;
+    }
     const host = this.caps.get(HOST_ELEMENT_CAP);
-    if (!host) return;
+    if (!host) {
+      this.active = false;
+      this.exposedByStateId.clear();
+      return;
+    }
+    this.active = true;
 
     const nameMap = this.caps.has(EXPOSE_STATE_WEB_MAP_CAP)
       ? this.caps.get(EXPOSE_STATE_WEB_MAP_CAP)
@@ -99,20 +117,35 @@ export class ExposeStateWebModuleImpl extends ModuleBase {
     const all = this.exposeState.getAll();
 
     this.clearBindings();
+    this.exposedByStateId.clear();
 
     for (const [key, value] of Object.entries(all)) {
       if (!isExternalStateHandle(value)) continue;
 
       const spec = value.spec as StateSpec;
       const semantic = (value as any).__stateSemantic || key;
+      const stateId = String((value as any).__stateId ?? "");
       const mapping = nameMap(semantic);
 
       const binding: Binding = {
         key,
+        stateId,
         kind: spec.kind,
-        attr: mapping.dataAttr,
+        attr: this.allowAttrForKind(spec.kind, mode)
+          ? mapping.dataAttr
+          : undefined,
         cssVar: mapping.cssVar,
       };
+
+      if (stateId) {
+        this.exposedByStateId.set(stateId, {
+          stateId,
+          key,
+          kind: spec.kind,
+          attr: binding.attr,
+          cssVar: binding.cssVar,
+        });
+      }
 
       this.applySnapshot(host, value, binding, mode);
 
@@ -200,5 +233,29 @@ export class ExposeStateWebModuleImpl extends ModuleBase {
       } catch {}
     }
     this.bindings = [];
+    this.active = false;
+    this.exposedByStateId.clear();
   }
+
+  private allowAttrForKind(
+    kind: StateSpec["kind"],
+    mode: ExposeStateWebMode
+  ): boolean {
+    switch (kind) {
+      case "bool":
+      case "enum":
+      case "string":
+      case "number.discrete":
+        return true;
+      case "number.range":
+        return !!mode.allowContinuousAttr;
+      default:
+        return false;
+    }
+  }
+
+  readonly port = {
+    isActive: () => this.active,
+    getExposedStateMap: () => this.exposedByStateId,
+  };
 }

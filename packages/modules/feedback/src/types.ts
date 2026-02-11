@@ -23,6 +23,12 @@ export type FeedbackPort = {
    * Preserves ordering semantics (later use wins by position).
    */
   useStyleRuntime: (...handles: StyleHandle[]) => () => void;
+
+  /**
+   * Internal: record style tokens without v0 token validation.
+   * Intended for rule extensions that emit selector-based tokens.
+   */
+  useStyleUnsafe: (...handles: StyleHandle[]) => () => void;
 };
 
 /**

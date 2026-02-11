@@ -28,7 +28,7 @@ export function compileRule<Props extends {}>(
   opt?: {
     registerStateHandle?: (id: any, handle: any) => void;
   }
-): RuleIR<Props> {
+): Omit<RuleIR<Props>, "id"> {
   const { w, getDeps } = createWhenBuilder<Props>({
     onStateHandle: opt?.registerStateHandle,
   });

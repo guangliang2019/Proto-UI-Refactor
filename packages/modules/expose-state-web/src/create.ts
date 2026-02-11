@@ -30,7 +30,7 @@ export function createExposeStateWebModule(
 
       return {
         facade: {},
-        port: {},
+        port: impl.port,
         hooks: {
           onProtoPhase: (p) => impl.onProtoPhase(p),
           afterRenderCommit: () => impl.afterRenderCommit(),

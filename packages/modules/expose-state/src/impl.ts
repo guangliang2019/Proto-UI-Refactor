@@ -153,6 +153,7 @@ export class ExposeStateModuleImpl extends ModuleBase {
     };
 
     (external as any).__stateSemantic = (handle as any).__stateSemantic;
+    (external as any).__stateId = (handle as any).__stateId;
 
     return external;
   }

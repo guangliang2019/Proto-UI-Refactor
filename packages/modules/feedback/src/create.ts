@@ -66,6 +66,19 @@ export function createFeedbackModule(ctx: ModuleFactoryArgs): FeedbackModule {
           };
         }
 
+        /** internal: record tokens without v0 validation (setup or runtime) */
+        useStyleUnsafe(handles: StyleHandle[]): () => void {
+          const unUse = this.recorder.useUnsafe(...handles);
+          this.dirty = true;
+          this.flushIfPossible();
+
+          return () => {
+            unUse();
+            this.dirty = true;
+            this.flushIfPossible();
+          };
+        }
+
         /** pure snapshot */
         exportMerged(): StyleHandle {
           const { tokens } = this.recorder.export();
@@ -155,6 +168,7 @@ export function createFeedbackModule(ctx: ModuleFactoryArgs): FeedbackModule {
         port: {
           applyMergedStyle: (h) => impl.applyMergedStyle(h),
           useStyleRuntime: (...handles) => impl.useStyleRuntime(handles),
+          useStyleUnsafe: (...handles) => impl.useStyleUnsafe(handles),
         } satisfies FeedbackPort,
         hooks: {
           onProtoPhase: (p: ProtoPhase) => impl.onProtoPhase(p),

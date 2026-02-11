@@ -48,6 +48,39 @@ export class FeedbackStyleRecorder {
   }
 
   /**
+   * internal: record style tokens without v0 tw validation.
+   * Used by rule extensions that generate selector-based tokens.
+   */
+  useUnsafe(...handles: StyleHandle[]): UnUse {
+    const flattened: string[] = [];
+    for (const h of handles) {
+      if (!h || h.kind !== "tw" || !Array.isArray(h.tokens)) {
+        throw new Error(`[feedback] unsupported style handle in v0`);
+      }
+      for (const t of h.tokens) {
+        if (typeof t !== "string" || !t) {
+          throw new Error(`[feedback] invalid tw token (unsafe): empty`);
+        }
+        flattened.push(t);
+      }
+    }
+
+    const chunk: Chunk = {
+      id: this.nextId++,
+      tokens: flattened,
+      removed: false,
+    };
+
+    this.chunks.push(chunk);
+
+    const unUse: UnUse = () => {
+      chunk.removed = true;
+    };
+
+    return unUse;
+  }
+
+  /**
    * Export a semantic snapshot of merged tokens.
    *
    * v0 recommendation: export is allowed in any phase (pure snapshot).

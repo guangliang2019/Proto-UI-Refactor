@@ -26,6 +26,7 @@ export class RuleModuleImpl<Props extends PropsBaseType> {
   private rules: RuleIR<Props>[] = [];
   private extensions: RuleExtension<Props>[] = [];
   private stateHandleById = new Map<any, { get(): any }>();
+  private nextRuleId = 1;
 
   private deps: RuleExecutorDeps<Props> = {};
   private depsResolver?: () => RuleExecutorDeps<Props>;
@@ -42,7 +43,8 @@ export class RuleModuleImpl<Props extends PropsBaseType> {
         }
       },
     });
-    this.rules.push(ir);
+    const withId = { ...ir, id: this.nextRuleId++ };
+    this.rules.push(withId);
   }
 
   exportIR(): RuleIR<Props>[] {
@@ -70,6 +72,13 @@ export class RuleModuleImpl<Props extends PropsBaseType> {
       readState,
     };
 
+    let rules = this.rules;
+    for (const ext of this.extensions) {
+      if (ext.transformRules) {
+        rules = ext.transformRules(rules, evalCtx) ?? rules;
+      }
+    }
+
     for (const ext of this.extensions) {
       const before = ext.beforePlan?.(evalCtx);
       if (before?.kind === "short-circuit") {
@@ -78,7 +87,7 @@ export class RuleModuleImpl<Props extends PropsBaseType> {
       }
     }
 
-    let plan = evaluateRulesToPlan(this.rules, evalCtx);
+    let plan = evaluateRulesToPlan(rules, evalCtx);
 
     for (const ext of this.extensions) {
       plan = ext.afterPlan ? ext.afterPlan(plan, evalCtx) : plan;

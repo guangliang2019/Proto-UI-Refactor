@@ -58,6 +58,7 @@ export type RuleOp =
 export type RuleIntent = { kind: "ops"; ops: RuleOp[] };
 
 export type RuleIR<Props extends {}> = {
+  id: number;
   label?: string;
   note?: string;
 
@@ -104,6 +105,10 @@ export type RuleEvalResult =
   | { kind: "short-circuit"; executed: boolean };
 
 export type RuleExtension<Props extends {}> = {
+  transformRules?: (
+    rules: RuleIR<Props>[],
+    ctx: RuleEvalCtx<Props>
+  ) => RuleIR<Props>[];
   beforePlan?: (ctx: RuleEvalCtx<Props>) =>
     | { kind: "continue" }
     | { kind: "short-circuit"; execute?: (ctx: RuleEvalCtx<Props>) => void };
