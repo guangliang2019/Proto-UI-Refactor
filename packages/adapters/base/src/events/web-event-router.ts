@@ -1,10 +1,12 @@
-// packages/adapters/web-component/src/events.ts
+// packages/adapters/base/src/events/web-event-router.ts
+
 type Unsub = () => void;
 
 type Listener = {
   type: string;
   cb: any;
   options?: any;
+  wrapped?: any;
 };
 
 export function createWebProtoEventRouter(opt: {

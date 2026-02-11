@@ -1,6 +1,6 @@
 // packages/adapters/web-component/test/contract/event.router.no-dedupe.v0.contract.test.ts
 import { describe, it, expect } from "vitest";
-import { createWebProtoEventRouter } from "../../src/events";
+import { createWebProtoEventRouter } from "@proto-ui/adapters.base";
 
 describe("contract: adapter-web-component / event router no-dedupe (v0)", () => {
   it("adding same callback twice must result in two deliveries (native:*)", () => {

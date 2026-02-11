@@ -1,6 +1,6 @@
 // packages/adapters/web-component/test/contract/event.router.extension.v0.contract.test.ts
 import { describe, it, expect } from "vitest";
-import { createWebProtoEventRouter } from "../../src/events";
+import { createWebProtoEventRouter } from "@proto-ui/adapters.base";
 
 describe("contract: adapter-web-component / event router extension events (v0)", () => {
   it("native:* MUST be supported: click -> native:click", () => {

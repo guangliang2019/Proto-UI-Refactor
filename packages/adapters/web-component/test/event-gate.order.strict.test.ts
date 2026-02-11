@@ -22,21 +22,17 @@ describe("WC adapter: event binding order (strict)", () => {
       },
     }));
 
-    // 2) mock router：用 FakeEventTarget 记录 addEventListener 时机
-    vi.doMock("../src/events", () => ({
-      createWebProtoEventRouter: () => ({
-        rootTarget,
-        globalTarget,
-        dispose: vi.fn(),
-      }),
-    }));
-
-    // 3) （可选）如果你 strict 版还 mock 了 adapter-base（createEventGate 等）
+    // 2) （可选）如果你 strict 版还 mock 了 adapter-base（createEventGate 等）
     // 强烈建议：能不 mock 就别 mock。真要 mock，也用 doMock 写在这里。
     vi.doMock("@proto-ui/adapters.base", async () => {
       const actual = await vi.importActual<any>("@proto-ui/adapters.base");
       return {
         ...actual,
+        createWebProtoEventRouter: () => ({
+          rootTarget,
+          globalTarget,
+          dispose: vi.fn(),
+        }),
         createEventGate: () => {
           let enabled = false;
           return {

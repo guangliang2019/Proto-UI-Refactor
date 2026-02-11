@@ -1,39 +1,21 @@
 // packages/adapters/web-component/src/adapt.ts
 import type { Prototype, EffectsPort, StyleHandle } from "@proto-ui/core";
-import { executeWithHost, type RuntimeHost } from "@proto-ui/runtime";
 import { PropsBaseType } from "@proto-ui/types";
 
-import {
-  RAW_PROPS_SOURCE_CAP,
-  type RawPropsSource,
-} from "@proto-ui/modules.props";
+import { type RawPropsSource } from "@proto-ui/modules.props";
 
 import {
   createHostWiring,
   createEventGate,
-  createTeardown,
+  createCapsWiring,
+  createAdapterHost,
+  createWebProtoEventRouter,
 } from "@proto-ui/adapters.base";
 
 import { commitChildren } from "./commit";
 import { bindController, getElementProps, unbindController } from "./props";
 import { SlotProjector } from "./slot-projector";
 import { createOwnedTwTokenApplier } from "./feedback-style";
-import { createWebProtoEventRouter } from "./events";
-import { EFFECTS_CAP } from "@proto-ui/modules.feedback";
-import {
-  EVENT_GLOBAL_TARGET_CAP,
-  EVENT_ROOT_TARGET_CAP,
-} from "@proto-ui/modules.event";
-import { EXPOSE_SET_EXPOSES_CAP } from "@proto-ui/modules.expose";
-import {
-  EXPOSE_STATE_WEB_MAP_CAP,
-  EXPOSE_STATE_WEB_MODE_CAP,
-  HOST_ELEMENT_CAP,
-} from "@proto-ui/modules.expose-state-web";
-import {
-  CONTEXT_INSTANCE_TOKEN_CAP,
-  CONTEXT_PARENT_CAP,
-} from "@proto-ui/modules.context";
 import { __RUN_TEST_SYS, type TestSysPort } from "@proto-ui/modules.test-sys";
 
 // Debug hook for contract tests / diagnostics.
@@ -118,7 +100,6 @@ export function AdaptToWebComponent<Props extends PropsBaseType>(
       if (this._mountedOnce) return;
       this._mountedOnce = true;
 
-      const teardown = createTeardown();
       const eventGate = createEventGate();
 
       const thisEl = this;
@@ -167,133 +148,149 @@ export function AdaptToWebComponent<Props extends PropsBaseType>(
       };
 
       // --- adapter-base wiring (CP1)
-      const wiring = createHostWiring({
-        prototypeName: proto.name,
-        modules: {
-          props: () => [[RAW_PROPS_SOURCE_CAP, rawPropsSource]],
-          feedback: () => [[EFFECTS_CAP, effectsPort]],
-          event: () => [
-            [EVENT_ROOT_TARGET_CAP, () => router.rootTarget],
-            [EVENT_GLOBAL_TARGET_CAP, () => router.globalTarget],
-          ],
-          "expose-state": () => [
-            [
-              EXPOSE_SET_EXPOSES_CAP,
-              (record: Record<string, unknown>) => {
-                this._exposes = record ?? {};
-              },
-            ],
-          ],
-          "expose-state-web": () => [
-            [HOST_ELEMENT_CAP, thisEl],
-            [
-              EXPOSE_STATE_WEB_MAP_CAP,
-              (semantic: string) => {
-                const base = semantic
-                  .trim()
-                  .replace(/\s+/g, "-")
-                  .replace(/\./g, "-")
-                  .replace(/[^a-zA-Z0-9\-]/g, "-")
-                  .toLowerCase();
-                return {
-                  dataAttr: `data-${base}`,
-                  cssVar: `--pui-${base}`,
-                };
-              },
-            ],
-            ...(exposeStateWebMode
-              ? [[EXPOSE_STATE_WEB_MODE_CAP, exposeStateWebMode] as const]
-              : []),
-          ],
-          context: () => [
-            [CONTEXT_INSTANCE_TOKEN_CAP, thisEl],
-            [CONTEXT_PARENT_CAP, (inst: unknown) =>
-              getProtoParent(inst as HTMLElement)],
-          ],
-        },
-      });
+      const modules = createCapsWiring()
+        .useProps(rawPropsSource)
+        .useFeedback(effectsPort)
+        .useEventTargets({
+          root: () => router.rootTarget,
+          global: () => router.globalTarget,
+        })
+        .useExposeState((record: Record<string, unknown>) => {
+          this._exposes = record ?? {};
+        })
+        .useExposeStateWeb({
+          host: thisEl,
+          nameMap: (semantic: string) => {
+            const base = semantic
+              .trim()
+              .replace(/\s+/g, "-")
+              .replace(/\./g, "-")
+              .replace(/[^a-zA-Z0-9\-]/g, "-")
+              .toLowerCase();
+            return {
+              dataAttr: `data-${base}`,
+              cssVar: `--pui-${base}`,
+            };
+          },
+          mode: exposeStateWebMode,
+        })
+        .useContext({
+          instance: thisEl,
+          parent: (inst: unknown) => getProtoParent(inst as HTMLElement),
+        })
+        .build();
 
-      const host: RuntimeHost<Props> = {
-        prototypeName: proto.name,
+      const wiring = createHostWiring({ prototypeName: proto.name, modules });
 
-        getRawProps(): Readonly<Props & PropsBaseType> {
-          return rawPropsSource.get() as Readonly<Props & PropsBaseType>;
-        },
+      let capsHub: any = null;
+      const hostSession = createAdapterHost(
+        proto,
+        {
+          getRawProps: () =>
+            rawPropsSource.get() as Readonly<Props & PropsBaseType>,
+          schedule,
+          commit: (children, signal) => {
+            if (shadow) {
+              commitChildren(thisRoot as any, children, { mode: "shadow" });
+              this._slotProjector?.disconnect();
+              this._slotProjector = null;
 
-        // CP1: runtime ready hook (called before created + before first commit)
-        onRuntimeReady: (wiringApi) => {
-          wiring.onRuntimeReady(wiringApi);
-        },
+              // WC profile: CP4 ~= commit done
+              eventGate.enable();
+              signal?.done();
+              return;
+            }
 
-        // CP8: unmount begins hook (before unmounted callbacks)
-        // IMPORTANT: do NOT reset caps here.
-        // This hook is for "make things ineffective immediately", e.g. disconnect observers.
-        onUnmountBegin: () => {
-          eventGate.disable();
+            if (isSlotOnly(children)) {
+              this._slotProjector?.disconnect();
+              this._slotProjector = null;
 
-          // If slot projector has an active MO, disconnect it early.
-          this._slotProjector?.disconnect();
-          this._slotProjector = null;
-        },
+              // still a commit boundary; make events effective afterwards
+              eventGate.enable();
+              signal?.done();
+              return;
+            }
 
-        commit: (children, signal) => {
-          if (shadow) {
-            commitChildren(thisRoot as any, children, { mode: "shadow" });
-            this._slotProjector?.disconnect();
-            this._slotProjector = null;
+            if (!this._slotProjector)
+              this._slotProjector = new SlotProjector(thisEl);
+            const projector = this._slotProjector;
+
+            const slotPool = projector.collectSlotPoolBeforeCommit();
+            const owned = new WeakSet<Node>();
+
+            const res = commitChildren(thisRoot as any, children, {
+              mode: "light",
+              slotPool,
+              owned,
+            });
+
+            projector.afterCommit({
+              owned,
+              slotStart: res.slotStart,
+              slotEnd: res.slotEnd,
+              projected: slotPool,
+              enableMO: res.hasSlot,
+            });
+
+            if (!res.hasSlot) {
+              projector.disconnect();
+              this._slotProjector = null;
+            }
 
             // WC profile: CP4 ~= commit done
             eventGate.enable();
             signal?.done();
-            return;
-          }
+          },
+        },
+        {
+          // CP1: runtime ready hook (called before created + before first commit)
+          onRuntimeReady: (wiringApi) => {
+            wiring.onRuntimeReady(wiringApi);
+          },
 
-          if (isSlotOnly(children)) {
+          // CP8: unmount begins hook (before unmounted callbacks)
+          // IMPORTANT: do NOT reset caps here.
+          // This hook is for "make things ineffective immediately", e.g. disconnect observers.
+          onUnmountBegin: () => {
+            eventGate.disable();
+
+            // If slot projector has an active MO, disconnect it early.
+            this._slotProjector?.disconnect();
+            this._slotProjector = null;
+          },
+
+          afterUnmount: () => {
+            try {
+              const port = (capsHub as any).getPort?.("test-sys");
+              port?.trace?.("after-unmount");
+            } catch { }
+
+            // 2) adapter-base cleanup (best-effort, after runtime disposal)
+            // NOTE: if your createHostWiring.afterUnmount() calls controller.reset(),
+            // it should swallow errors because moduleHub may already be disposed.
+            wiring.afterUnmount();
+            eventGate.dispose();
+            router.dispose();
+
+            // 3) then adapter local cleanup
             this._slotProjector?.disconnect();
             this._slotProjector = null;
 
-            // still a commit boundary; make events effective afterwards
-            eventGate.enable();
-            signal?.done();
-            return;
-          }
+            this._applier?.clear();
+            this._applier = null;
 
-          if (!this._slotProjector)
-            this._slotProjector = new SlotProjector(thisEl);
-          const projector = this._slotProjector;
+            unbindController(this);
 
-          const slotPool = projector.collectSlotPoolBeforeCommit();
-          const owned = new WeakSet<Node>();
+            // clear debug hook
+            try {
+              delete (this as any)[__WC_DEBUG_SYS];
+            } catch { }
+          },
+        }
+      );
 
-          const res = commitChildren(thisRoot as any, children, {
-            mode: "light",
-            slotPool,
-            owned,
-          });
-
-          projector.afterCommit({
-            owned,
-            slotStart: res.slotStart,
-            slotEnd: res.slotEnd,
-            projected: slotPool,
-            enableMO: res.hasSlot,
-          });
-
-          if (!res.hasSlot) {
-            projector.disconnect();
-            this._slotProjector = null;
-          }
-
-          // WC profile: CP4 ~= commit done
-          eventGate.enable();
-          signal?.done();
-        },
-
-        schedule,
-      };
-
-      const res = executeWithHost(proto, host);
-      const { controller, invokeUnmounted, caps: capsHub } = res;
+      const { controller } = hostSession;
+      capsHub = hostSession.caps;
 
       // Debug: expose test-sys port for contract tests (best-effort).
       // If module not present, leave undefined.
@@ -309,7 +306,7 @@ export function AdaptToWebComponent<Props extends PropsBaseType>(
         enumerable: false,
         configurable: true,
         get: () => {
-          const port = capsHub.getPort<TestSysPort>("test-sys");
+          const port = (capsHub as any).getPort?.("test-sys") as TestSysPort;
           return port?.getTrace?.() ?? [];
         },
       });
@@ -319,7 +316,7 @@ export function AdaptToWebComponent<Props extends PropsBaseType>(
         enumerable: false,
         configurable: true,
         value: () => {
-          const port = capsHub.getPort<TestSysPort>("test-sys");
+          const port = (capsHub as any).getPort?.("test-sys") as TestSysPort;
           port?.clearTrace?.();
         },
       });
@@ -331,37 +328,7 @@ export function AdaptToWebComponent<Props extends PropsBaseType>(
       bindController(this, controller);
 
       // Teardown must keep caps alive until unmounted callbacks finish.
-      this._invokeUnmounted = () =>
-        teardown.run(() => {
-          // 1) let runtime run CP8/CP9/CP10 (unmounted callbacks run BEFORE disposal)
-          invokeUnmounted();
-
-          try {
-            const port = (capsHub as any).getPort?.("test-sys");
-            port?.trace?.("after-unmount");
-          } catch {}
-
-          // 2) adapter-base cleanup (best-effort, after runtime disposal)
-          // NOTE: if your createHostWiring.afterUnmount() calls controller.reset(),
-          // it should swallow errors because moduleHub may already be disposed.
-          wiring.afterUnmount();
-          eventGate.dispose();
-          router.dispose();
-
-          // 3) then adapter local cleanup
-          this._slotProjector?.disconnect();
-          this._slotProjector = null;
-
-          this._applier?.clear();
-          this._applier = null;
-
-          unbindController(this);
-
-          // clear debug hook
-          try {
-            delete (this as any)[__WC_DEBUG_SYS];
-          } catch {}
-        });
+      this._invokeUnmounted = () => hostSession.dispose();
     }
 
     disconnectedCallback() {

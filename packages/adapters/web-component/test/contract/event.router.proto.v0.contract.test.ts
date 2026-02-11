@@ -1,6 +1,6 @@
 // packages/adapters/web-component/test/contract/event.router.proto.v0.contract.test.ts
 import { describe, it, expect } from "vitest";
-import { createWebProtoEventRouter } from "../../src/events";
+import { createWebProtoEventRouter } from "@proto-ui/adapters.base";
 
 describe("contract: adapter-web-component / event router proto semantic mapping (v0)", () => {
   it("click -> press.commit (rootTarget)", () => {

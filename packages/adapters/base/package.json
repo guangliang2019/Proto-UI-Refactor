@@ -5,10 +5,16 @@
     "type": "module",
     "dependencies": {
       "@proto-ui/core": "workspace:*",
-      "@proto-ui/runtime": "workspace:*"
+      "@proto-ui/runtime": "workspace:*",
+      "@proto-ui/types": "workspace:*",
+      "@proto-ui/modules.props": "workspace:*",
+      "@proto-ui/modules.feedback": "workspace:*",
+      "@proto-ui/modules.event": "workspace:*",
+      "@proto-ui/modules.expose": "workspace:*",
+      "@proto-ui/modules.expose-state-web": "workspace:*",
+      "@proto-ui/modules.context": "workspace:*"
     },
     "devDependencies": {
-      "@proto-ui/modules.event": "workspace:*"
     },
     "exports": {
       ".": {

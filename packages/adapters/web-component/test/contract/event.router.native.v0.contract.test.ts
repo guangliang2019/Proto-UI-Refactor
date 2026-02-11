@@ -1,6 +1,6 @@
 // packages/adapters/web-component/test/contract/event.router.native.v0.contract.test.ts
 import { describe, it, expect } from "vitest";
-import { createWebProtoEventRouter } from "../../src/events";
+import { createWebProtoEventRouter } from "@proto-ui/adapters.base";
 
 describe("contract: adapter-web-component / event router native:* (v0)", () => {
   it("native:* should forward to real DOM native event (lazy binding)", () => {

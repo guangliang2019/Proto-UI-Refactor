@@ -1,6 +1,6 @@
 // packages/adapters/web-component/test/contract/event.router.dual-path.v0.contract.test.ts
 import { describe, it, expect } from "vitest";
-import { createWebProtoEventRouter } from "../../src/events";
+import { createWebProtoEventRouter } from "@proto-ui/adapters.base";
 
 describe("contract: adapter-web-component / event router dual-path (v0)", () => {
   it("native:* and proto semantic can coexist for same native trigger", () => {

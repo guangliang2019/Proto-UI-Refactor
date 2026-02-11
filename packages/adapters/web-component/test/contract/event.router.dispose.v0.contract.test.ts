@@ -1,6 +1,6 @@
 // packages/adapters/web-component/test/contract/event.router.dispose.v0.contract.test.ts
 import { describe, it, expect } from "vitest";
-import { createWebProtoEventRouter } from "../../src/events";
+import { createWebProtoEventRouter } from "@proto-ui/adapters.base";
 
 describe("contract: adapter-web-component / event router dispose (v0)", () => {
   it("dispose() must stop proto semantic delivery", () => {
