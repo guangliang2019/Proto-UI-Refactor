@@ -65,6 +65,9 @@ export type AsHookCaller<
 
 export const __AS_HOOK_RUNTIME = Symbol.for("@proto-ui/asHook/runtime");
 export const __AS_HOOK_CURRENT_DEF = Symbol.for("@proto-ui/asHook/current-def");
+export const __AS_HOOK_PRIV_FACADES = Symbol.for(
+  "@proto-ui/asHook/priv-facades"
+);
 
 /** Thin wrapper: stabilize author-facing entry & improve inference */
 export function definePrototype<P extends PropsBaseType, E = Record<string, unknown>>(

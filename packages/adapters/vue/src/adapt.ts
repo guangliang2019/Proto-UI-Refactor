@@ -31,6 +31,7 @@ export type VueRuntime = VueRenderRuntime & {
 export const __VUE_PROTO_INSTANCE = Symbol.for(
   "@proto-ui/adapters.vue/__proto_instance"
 );
+const PROTO_BY_INSTANCE = new WeakMap<HTMLElement, Prototype<any>>();
 
 function isProtoInstance(node: Node | null): node is HTMLElement {
   if (!node || !(node as any)) return false;
@@ -198,10 +199,11 @@ export function createVueAdapter(runtime: VueRuntime) {
 
         runtime.onMounted(() => {
           const rootEl = rootRef.value;
-          if (!rootEl) return;
-          if (controllerRef.value) return;
+        if (!rootEl) return;
+        if (controllerRef.value) return;
 
-          (rootEl as any)[__VUE_PROTO_INSTANCE] = true;
+        (rootEl as any)[__VUE_PROTO_INSTANCE] = true;
+        PROTO_BY_INSTANCE.set(rootEl, proto as Prototype<any>);
 
           const eventGate = createEventGate();
           eventGateRef.value = eventGate;
@@ -232,11 +234,17 @@ export function createVueAdapter(runtime: VueRuntime) {
               nameMap: createNameMap,
               mode: exposeStateWebMode,
             })
-            .useContext({
-              instance: rootEl,
-              parent: (inst) => getProtoParent(inst as HTMLElement),
-            })
-            .build();
+          .useContext({
+            instance: rootEl,
+            parent: (inst) => getProtoParent(inst as HTMLElement),
+          })
+          .useAsTrigger({
+            instance: rootEl,
+            parent: (inst) => getProtoParent(inst as HTMLElement),
+            getPrototype: (inst) =>
+              PROTO_BY_INSTANCE.get(inst as HTMLElement) ?? null,
+          })
+          .build();
 
           const wiring = createHostWiring({ prototypeName: proto.name, modules });
           wiringRef.value = wiring;

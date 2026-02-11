@@ -27,6 +27,7 @@ export const __WC_DEBUG_SYS = Symbol.for(
 const __WC_PROTO_INSTANCE = Symbol.for(
   "@proto-ui/adapters.web-component/__proto_instance"
 );
+const PROTO_BY_INSTANCE = new WeakMap<HTMLElement, Prototype<any>>();
 
 function assertKebabCase(tag: string) {
   if (!tag.includes("-") || tag.toLowerCase() !== tag) {
@@ -94,6 +95,7 @@ export function AdaptToWebComponent<Props extends PropsBaseType>(
         ? (this.attachShadow({ mode: "open" }) as ShadowRoot)
         : this;
       (this as any)[__WC_PROTO_INSTANCE] = true;
+      PROTO_BY_INSTANCE.set(this, proto as Prototype<any>);
     }
 
     connectedCallback() {
@@ -177,6 +179,12 @@ export function AdaptToWebComponent<Props extends PropsBaseType>(
         .useContext({
           instance: thisEl,
           parent: (inst: unknown) => getProtoParent(inst as HTMLElement),
+        })
+        .useAsTrigger({
+          instance: thisEl,
+          parent: (inst: unknown) => getProtoParent(inst as HTMLElement),
+          getPrototype: (inst: unknown) =>
+            PROTO_BY_INSTANCE.get(inst as HTMLElement) ?? null,
         })
         .build();
 

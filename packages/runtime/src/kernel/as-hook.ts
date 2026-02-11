@@ -8,7 +8,6 @@ import type {
 } from "@proto-ui/core";
 import { __AS_HOOK_RUNTIME as AS_HOOK_RT } from "@proto-ui/core";
 import type { PropsBaseType } from "@proto-ui/types";
-import type { ModuleOrchestrator } from "../orchestrator/module-orchestrator";
 import type { StatePort } from "@proto-ui/modules.state";
 import { illegalPhase } from "./guard";
 
@@ -112,16 +111,23 @@ function projectStateValue<P extends PropsBaseType>(
   return value;
 }
 
+export function createAsHookStateProjector<P extends PropsBaseType>(
+  port?: StatePort
+): <T>(state: T) => T {
+  if (!port) return (state) => state;
+  return <T>(state: T) => projectStateValue<P>(port, state) as T;
+}
+
 export function attachAsHookRuntime<P extends PropsBaseType>(
   def: DefHandle<P, any>,
   st: DefRuntimeState,
-  moduleHub: ModuleOrchestrator,
-  proto: object
+  proto: object,
+  opt?: { projectState?: <T>(state: T) => T }
 ): void {
   const trace = getOrCreateTrace(proto);
   const used = new Set<string>();
   let instanceOrder = 0;
-  const statePort = moduleHub.getPort<StatePort>("state");
+  const projectState = opt?.projectState ?? ((state: any) => state);
 
   const ensureSetup = (op: string) => {
     const phase = st.getPhase();
@@ -154,8 +160,7 @@ export function attachAsHookRuntime<P extends PropsBaseType>(
       return { run: true, order: entryOrder };
     },
     projectState: <T>(state: T): T => {
-      if (!statePort) return state;
-      return projectStateValue<P>(statePort, state) as T;
+      return projectState(state);
     },
     getTrace: () => trace.entries.slice(),
   };

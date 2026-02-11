@@ -12,6 +12,7 @@ import { RuleExposeStateWebModuleDef } from "@proto-ui/modules.rule-expose-state
 import { RuleModuleDef } from "@proto-ui/modules.rule";
 import { StateModuleDef } from "@proto-ui/modules.state";
 import { ContextModuleDef } from "@proto-ui/modules.context";
+import { AsTriggerModuleDef } from "@proto-ui/modules.as-trigger";
 import {
   __RUN_TEST_SYS,
   TestSysModuleDef,
@@ -25,6 +26,7 @@ import { __RT_EVENT_CALLBACKS } from "../kernel/event";
 
 import { CallbackScope } from "./execute/callback-scope";
 import { createKernel, type Kernel } from "../kernel";
+import { createAsHookStateProjector } from "../kernel/as-hook";
 import type { RuntimeTimeline } from "../kernel/timeline";
 
 export type RuntimeInstance<P extends PropsBaseType> = {
@@ -58,6 +60,7 @@ export function createRuntimeInstance<P extends PropsBaseType>(
   const moduleHub = new RuntimeModuleOrchestrator(
     { prototypeName: proto.name, getPhase },
     [
+      AsTriggerModuleDef,
       RuleModuleDef,
       FeedbackModuleDef,
       PropsModuleDef,
@@ -78,6 +81,11 @@ export function createRuntimeInstance<P extends PropsBaseType>(
     allowRunUpdate: opt?.allowRunUpdate,
     onPhaseChange: (p) => {
       phaseRef = p;
+    },
+    asHook: {
+      projectState: createAsHookStateProjector<P>(
+        moduleHub.getPort("state")
+      ),
     },
     eventSink: {
       setEventCallbacks: (callbacks) => {

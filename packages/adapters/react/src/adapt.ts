@@ -30,6 +30,7 @@ export type ReactRuntime = ReactRenderRuntime & {
 export const __REACT_PROTO_INSTANCE = Symbol.for(
   "@proto-ui/adapters.react/__proto_instance"
 );
+const PROTO_BY_INSTANCE = new WeakMap<HTMLElement, Prototype<any>>();
 
 function isProtoInstance(node: Node | null): node is HTMLElement {
   if (!node || !(node as any)) return false;
@@ -193,6 +194,7 @@ export function createReactAdapter(runtime: ReactRuntime) {
         if (controllerRef.current) return;
 
         (rootEl as any)[__REACT_PROTO_INSTANCE] = true;
+        PROTO_BY_INSTANCE.set(rootEl, proto as Prototype<any>);
 
         const eventGate = createEventGate();
         eventGateRef.current = eventGate;
@@ -225,6 +227,12 @@ export function createReactAdapter(runtime: ReactRuntime) {
           .useContext({
             instance: rootEl,
             parent: (inst) => getProtoParent(inst as HTMLElement),
+          })
+          .useAsTrigger({
+            instance: rootEl,
+            parent: (inst) => getProtoParent(inst as HTMLElement),
+            getPrototype: (inst) =>
+              PROTO_BY_INSTANCE.get(inst as HTMLElement) ?? null,
           })
           .build();
 

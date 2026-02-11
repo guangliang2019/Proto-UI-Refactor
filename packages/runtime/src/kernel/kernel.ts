@@ -9,6 +9,7 @@ import {
   RunHandle,
   TemplateChildren,
   __AS_HOOK_CURRENT_DEF,
+  __AS_HOOK_PRIV_FACADES,
 } from "@proto-ui/core";
 import { PropsBaseType } from "@proto-ui/types";
 import {
@@ -19,7 +20,7 @@ import {
   type EventCallbacksSink,
 } from "./handles";
 import type { RuleFacade } from "@proto-ui/modules.rule";
-import type { ModuleOrchestrator } from "../orchestrator/module-orchestrator/types";
+import type { ModuleOrchestratorFacadeView } from "../orchestrator/module-orchestrator/types";
 import type { PropsFacade } from "@proto-ui/modules.props";
 import type { ExecPhase } from "@proto-ui/modules.base";
 import type { RuntimeTimeline } from "./timeline";
@@ -45,11 +46,12 @@ export type Kernel<P extends PropsBaseType> = {
 export type CreateKernelOptions = {
   allowRunUpdate?: boolean;
   onPhaseChange?: (p: ExecPhase) => void;
+  asHook?: { projectState?: <T>(state: T) => T };
 };
 
 export function createKernel<P extends PropsBaseType>(
   proto: Prototype<P>,
-  modules: ModuleOrchestrator,
+  modules: ModuleOrchestratorFacadeView,
   opt?: CreateKernelOptions & { eventSink?: EventCallbacksSink<P> }
 ): Kernel<P> {
   let phase: ExecPhase = "unknown";
@@ -69,7 +71,13 @@ export function createKernel<P extends PropsBaseType>(
   const rules = modules.getFacades()["rule"] as RuleFacade<P>;
 
   const def = createDefHandle<P>(st, lifecycle, rules, modules, opt?.eventSink);
-  attachAsHookRuntime(def, st, modules, proto);
+  attachAsHookRuntime(def, st, proto, opt?.asHook);
+  Object.defineProperty(def as any, __AS_HOOK_PRIV_FACADES, {
+    value: modules.getFacades(),
+    enumerable: false,
+    configurable: false,
+    writable: false,
+  });
 
   // ----------------
   // setup

@@ -23,6 +23,14 @@ import {
   type ContextParentGetter,
   type ContextInstanceToken,
 } from "@proto-ui/modules.context";
+import {
+  AS_TRIGGER_GET_PROTO_CAP,
+  AS_TRIGGER_INSTANCE_CAP,
+  AS_TRIGGER_PARENT_CAP,
+  type AsTriggerInstanceToken,
+  type AsTriggerParentGetter,
+  type AsTriggerPrototypeGetter,
+} from "@proto-ui/modules.as-trigger";
 import type { EffectsPort } from "@proto-ui/core";
 import type { PropsBaseType } from "@proto-ui/types";
 
@@ -43,6 +51,11 @@ export type CapsWiringBuilder = {
   useContext(args: {
     instance: ContextInstanceToken;
     parent: ContextParentGetter;
+  }): CapsWiringBuilder;
+  useAsTrigger(args: {
+    instance: AsTriggerInstanceToken;
+    parent: AsTriggerParentGetter;
+    getPrototype: AsTriggerPrototypeGetter;
   }): CapsWiringBuilder;
   build(): WiringSpec;
 };
@@ -89,6 +102,14 @@ export function createCapsWiring(): CapsWiringBuilder {
       return add("context", () => [
         [CONTEXT_INSTANCE_TOKEN_CAP, instance],
         [CONTEXT_PARENT_CAP, parent],
+      ]);
+    },
+
+    useAsTrigger({ instance, parent, getPrototype }) {
+      return add("as-trigger", () => [
+        [AS_TRIGGER_INSTANCE_CAP, instance],
+        [AS_TRIGGER_PARENT_CAP, parent],
+        [AS_TRIGGER_GET_PROTO_CAP, getPrototype],
       ]);
     },
 
