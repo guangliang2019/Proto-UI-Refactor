@@ -8,6 +8,7 @@ import {
   RenderReadHandle,
   RunHandle,
   TemplateChildren,
+  __AS_HOOK_CURRENT_DEF,
 } from "@proto-ui/core";
 import { PropsBaseType } from "@proto-ui/types";
 import {
@@ -18,10 +19,11 @@ import {
   type EventCallbacksSink,
 } from "./handles";
 import type { RuleFacade } from "@proto-ui/modules.rule";
-import type { ModuleOrchestratorFacadeView } from "../orchestrator/module-orchestrator/types";
+import type { ModuleOrchestrator } from "../orchestrator/module-orchestrator/types";
 import type { PropsFacade } from "@proto-ui/modules.props";
 import type { ExecPhase } from "@proto-ui/modules.base";
 import type { RuntimeTimeline } from "./timeline";
+import { attachAsHookRuntime } from "./as-hook";
 
 export type Kernel<P extends PropsBaseType> = {
   getPhase(): Phase;
@@ -47,7 +49,7 @@ export type CreateKernelOptions = {
 
 export function createKernel<P extends PropsBaseType>(
   proto: Prototype<P>,
-  modules: ModuleOrchestratorFacadeView,
+  modules: ModuleOrchestrator,
   opt?: CreateKernelOptions & { eventSink?: EventCallbacksSink<P> }
 ): Kernel<P> {
   let phase: ExecPhase = "unknown";
@@ -67,12 +69,19 @@ export function createKernel<P extends PropsBaseType>(
   const rules = modules.getFacades()["rule"] as RuleFacade<P>;
 
   const def = createDefHandle<P>(st, lifecycle, rules, modules, opt?.eventSink);
+  attachAsHookRuntime(def, st, modules, proto);
 
   // ----------------
   // setup
   // ----------------
   setPhase("setup");
-  const maybeRender = proto.setup(def);
+  (globalThis as any)[__AS_HOOK_CURRENT_DEF] = def;
+  let maybeRender: RenderFn | void;
+  try {
+    maybeRender = proto.setup(def);
+  } finally {
+    (globalThis as any)[__AS_HOOK_CURRENT_DEF] = undefined;
+  }
   const renderFn: RenderFn = maybeRender ?? ((renderer) => [renderer.r.slot()]);
   setPhase("unknown");
 
