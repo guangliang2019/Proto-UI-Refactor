@@ -10,6 +10,9 @@
     "@proto-ui/types": "workspace:*"
   },
   "scripts": {
+    "docs:dev": "pnpm --filter apps-www dev",
+    "docs:build": "pnpm --filter apps-www build",
+    "docs:preview": "pnpm --filter apps-www preview",
     "test": "pnpm -s test:types && pnpm -s test:runtime",
     "test:types": "echo \"[types] checking type contracts...\" && tsc -p internal/contracts/types/tsconfig.json && echo \"[types] OK\"",
     "test:runtime": "vitest run"
